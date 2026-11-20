@@ -62,16 +62,17 @@
 <script>
 /* ================== CONFIGURATION ================== */
 
-// Colonnes booléennes de la table « Utilisateurs » (libellé affiché → identifiant de colonne Grist).
-// Si l'identifiant d'une colonne diffère (ex. « DSDEN_24 »), adapter le champ "col".
+// Colonnes booléennes de la table « Utilisateurs ».
+// Chaque case est associée à une colonne via le panneau de droite de Grist (mappage de colonnes),
+// ce qui évite de dépendre de l'identifiant technique des colonnes.
 const CASES = [
-  { label: "SAIO",     col: "SAIO" },
-  { label: "DRAAF",    col: "DRAAF" },
-  { label: "DSDEN 24", col: "DSDEN_24" },
-  { label: "DSDEN 33", col: "DSDEN_33" },
-  { label: "DSDEN 40", col: "DSDEN_40" },
-  { label: "DSDEN 47", col: "DSDEN_47" },
-  { label: "DSDEN 64", col: "DSDEN_64" }
+  { label: "SAIO",     cle: "SAIO" },
+  { label: "DRAAF",    cle: "DRAAF" },
+  { label: "DSDEN 24", cle: "DSDEN_24" },
+  { label: "DSDEN 33", cle: "DSDEN_33" },
+  { label: "DSDEN 40", cle: "DSDEN_40" },
+  { label: "DSDEN 47", cle: "DSDEN_47" },
+  { label: "DSDEN 64", cle: "DSDEN_64" }
 ];
 
 // Entrées créées quand une case est cochée.
@@ -87,26 +88,45 @@ const ENTREES = [
 /* ================== LOGIQUE ================== */
 
 let enregistrement = null;   // ligne courante de la table « Utilisateurs »
+let associees = {};          // cases dont la colonne est associée
 const grille  = document.getElementById("grille");
 const message = document.getElementById("message");
 
-grist.ready({ requiredAccess: "full" });
+if (typeof grist === "undefined") {
+  message.textContent = "Erreur : grist-plugin-api.js est introuvable. Vérifiez qu'il est bien dans le dépôt GitHub, à côté de index.html.";
+} else {
+  grist.ready({
+    requiredAccess: "full",
+    columns: CASES.map(function (c) {
+      return { name: c.cle, title: c.label, type: "Bool", optional: true };
+    })
+  });
 
-grist.onRecord(function (rec) {
-  enregistrement = rec;
-  afficher();
-});
+  grist.onRecord(function (rec, mappings) {
+    associees = {};
+    CASES.forEach(function (c) { associees[c.cle] = !!(mappings && mappings[c.cle]); });
+    enregistrement = rec ? grist.mapColumnNames(rec) : null;
+    afficher();
+  });
+}
 
 function afficher() {
   grille.innerHTML = "";
   if (!enregistrement) {
+    message.textContent = "En attente d'une ligne de la table « Utilisateurs »… (cliquez sur une ligne ; vérifiez la source de données du widget)";
     message.style.display = "";
     return;
   }
-  message.style.display = "none";
+  const nb = CASES.filter(function (c) { return associees[c.cle]; }).length;
+  if (nb === 0) {
+    message.textContent = "Associez chaque case à sa colonne dans le panneau de droite (« Colonnes visibles »).";
+    message.style.display = "";
+  } else {
+    message.style.display = "none";
+  }
 
   CASES.forEach(function (c) {
-    const coche = !!enregistrement[c.col];
+    const coche = !!enregistrement[c.cle];
 
     const carte = document.createElement("div");
     carte.className = "carte" + (coche ? " active" : "");
@@ -116,6 +136,7 @@ function afficher() {
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = coche;
+    cb.disabled = !associees[c.cle];
     cb.addEventListener("change", function () { basculer(c, cb.checked); });
     lbl.appendChild(cb);
     lbl.appendChild(document.createTextNode(c.label));
@@ -150,13 +171,13 @@ function creerEntree(e, c) {
 
 async function basculer(c, valeur) {
   if (!enregistrement) return;
-  enregistrement[c.col] = valeur;      // mise à jour immédiate de l'affichage
+  enregistrement[c.cle] = valeur;      // mise à jour immédiate de l'affichage
   afficher();
   try {
-    await grist.selectedTable.update({ id: enregistrement.id, fields: { [c.col]: valeur } });
+    await grist.selectedTable.update({ id: enregistrement.id, fields: { [c.cle]: valeur } });
   } catch (err) {
     console.error("Échec de l'enregistrement :", err);
-    enregistrement[c.col] = !valeur;   // retour arrière en cas d'erreur
+    enregistrement[c.cle] = !valeur;   // retour arrière en cas d'erreur
     afficher();
   }
 }
