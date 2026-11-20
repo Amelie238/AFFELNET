@@ -3,110 +3,210 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Widget Utilisateurs – Accès aux contrôles</title>
+<title>Widget AFFELNET – Accès aux contrôles</title>
 <!-- Fichier à placer dans le dépôt GitHub, à côté de index.html -->
 <script src="./grist-plugin-api.js"></script>
 <style>
   :root {
-    --bg: #fbf9ff;
-    --card: #ffffff;
-    --text: #3d3a4f;
-    --muted: #8b88a0;
-    --border: #e6e1f2;
-    --accent: #b9a7f0;
-    --accent-soft: #efeafd;
+    --bg: #fbf9ff; --card: #ffffff; --text: #3d3a4f; --muted: #8b88a0;
+    --border: #e6e1f2; --accent: #b9a7f0; --accent-soft: #efeafd;
     --c1: #dff3ea; --c1b: #a9dcc3;
     --c2: #fde9d9; --c2b: #f5c6a0;
     --c3: #dfeefb; --c3b: #a8cdee;
     --c4: #fbe3ee; --c4b: #efb4cf;
+    --ok: #dff3ea; --okt: #2f7a5a;
+    --att: #fdf0d5; --attt: #9a6b12;
+    --ko: #fbe0e4; --kot: #a23b52;
+    --neutre: #eceaf3; --neutret: #6b6880;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 16px;
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
-    background: var(--bg); color: var(--text);
-  }
+  body { margin: 0; padding: 16px; font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
   h1 { font-size: 1.05rem; margin: 0 0 12px; font-weight: 600; }
   #message { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
+  .cache { display: none !important; }
+
+  /* ---------- Accueil ---------- */
   #grille { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-  .carte {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; padding: 12px 14px;
-    box-shadow: 0 2px 8px rgba(120, 100, 180, .06);
-  }
+  .carte { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(120,100,180,.06); }
   .carte.active { border-color: var(--accent); background: linear-gradient(180deg, var(--accent-soft), var(--card) 60%); }
   .case { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
   .case input { width: 18px; height: 18px; accent-color: #9b84e8; cursor: pointer; }
   .case input:disabled { cursor: not-allowed; }
   .entrees { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-  .entree {
-    display: block; padding: 9px 12px; border-radius: 10px; border: 1px solid;
-    font-size: .85rem; line-height: 1.3; text-decoration: none; color: var(--text);
-    transition: transform .08s ease, box-shadow .08s ease;
-  }
-  a.entree:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  .entree { display: block; width: 100%; text-align: left; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid; font-size: .85rem; line-height: 1.3; color: var(--text); cursor: pointer; transition: transform .08s ease, box-shadow .08s ease; }
+  .entree:hover:not(.inactif) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
   .entree small { display: block; color: var(--muted); margin-top: 2px; font-size: .72rem; }
   .entree.e1 { background: var(--c1); border-color: var(--c1b); }
   .entree.e2 { background: var(--c2); border-color: var(--c2b); }
   .entree.e3 { background: var(--c3); border-color: var(--c3b); }
   .entree.e4 { background: var(--c4); border-color: var(--c4b); }
   .entree.inactif { opacity: .6; cursor: default; border-style: dashed; }
+
+  /* ---------- Barre commune des vues ---------- */
+  .barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .barre h2 { font-size: .98rem; margin: 0; flex: 1 1 200px; font-weight: 600; }
+  button.retour, #recherche { font: inherit; font-size: .85rem; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+  button.retour { cursor: pointer; background: var(--accent-soft); }
+  button.retour:hover { border-color: var(--accent); }
+  #recherche { min-width: 180px; }
+  #compteur { color: var(--muted); font-size: .8rem; }
+
+  /* ---------- Vue tableau générique ---------- */
+  .defil { overflow: auto; max-height: calc(100vh - 110px); border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: .8rem; }
+  th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--accent-soft); font-weight: 600; }
+  tr:hover td { background: #faf8ff; }
+
+  /* ---------- Vue Affectation ---------- */
+  .puces { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .puce { font-size: .78rem; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); border: 1px solid var(--border); }
+  .puce b { font-weight: 700; }
+  #listeAff { display: flex; flex-direction: column; gap: 12px; }
+  details.ville { background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 2px 8px rgba(120,100,180,.05); }
+  details.ville > summary { cursor: pointer; padding: 10px 14px; font-weight: 600; background: var(--c3); border-radius: 14px; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+  details.ville[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  details.ville > summary::-webkit-details-marker { display: none; }
+  .nbville { font-weight: 400; font-size: .8rem; color: var(--muted); }
+  .etab { padding: 10px 14px 4px; }
+  .etabtete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .etabnom { font-weight: 600; font-size: .9rem; }
+  .uai { font-family: Consolas, monospace; font-size: .72rem; padding: 2px 8px; border-radius: 8px; background: var(--c4); border: 1px solid var(--c4b); }
+  .cand { display: grid; grid-template-columns: minmax(150px, 1.1fr) minmax(200px, 2fr) auto; gap: 8px 14px; align-items: center; padding: 8px 10px; border-top: 1px solid var(--border); font-size: .82rem; }
+  .cand:first-of-type { border-top: none; }
+  .candnom { font-weight: 600; }
+  .formations { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+  .formations .fl { color: var(--text); }
+  .badge { font-size: .74rem; padding: 3px 10px; border-radius: 999px; white-space: nowrap; font-weight: 600; }
+  .badge.ok { background: var(--ok); color: var(--okt); }
+  .badge.att { background: var(--att); color: var(--attt); }
+  .badge.ko { background: var(--ko); color: var(--kot); }
+  .badge.neutre { background: var(--neutre); color: var(--neutret); }
+  .vide { color: var(--muted); padding: 18px; text-align: center; font-size: .9rem; }
+  .alerte { background: var(--att); color: var(--attt); border-radius: 10px; padding: 10px 12px; font-size: .82rem; margin-bottom: 12px; }
+  details.diag { margin-top: 14px; font-size: .75rem; color: var(--muted); }
+  details.diag summary { cursor: pointer; }
+  details.diag ul { margin: 6px 0 0; padding-left: 18px; }
+  @media (max-width: 640px) { .cand { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 
-<h1>Accès aux contrôles par structure</h1>
 <div id="message">En attente d'une ligne de la table « Utilisateurs »…</div>
-<div id="grille"></div>
+
+<!-- Accueil : cases de la table « Utilisateurs » -->
+<div id="accueil">
+  <h1>Accès aux contrôles par structure</h1>
+  <div id="grille"></div>
+</div>
+
+<!-- Vue tableau générique -->
+<div id="vueTable" class="cache">
+  <div class="barre">
+    <button class="retour" id="retour">← Retour</button>
+    <h2 id="titreTable"></h2>
+    <input id="recherche" type="search" placeholder="Rechercher…">
+    <span id="compteur"></span>
+  </div>
+  <div class="defil"><table id="tableau"></table></div>
+</div>
+
+<!-- Vue Affectation -->
+<div id="vueAff" class="cache">
+  <div class="barre">
+    <button class="retour" id="retourAff">← Retour</button>
+    <h2 id="titreAff"></h2>
+    <input id="rechercheAff" type="search" placeholder="Rechercher un candidat, une ville…">
+    <span id="compteurAff"></span>
+  </div>
+  <div id="alerteAff"></div>
+  <div class="puces" id="puces"></div>
+  <div id="listeAff"></div>
+  <details class="diag"><summary>Colonnes utilisées</summary><ul id="diag"></ul></details>
+</div>
 
 <script>
 /* ================== CONFIGURATION ================== */
 
-// Colonnes booléennes de la table « Utilisateurs ».
-// Chaque case est associée à une colonne via le panneau de droite de Grist (mappage de colonnes),
-// ce qui évite de dépendre de l'identifiant technique des colonnes.
+// Colonnes booléennes de la table « Utilisateurs » (associées via le panneau de droite de Grist).
+// "valeurs" : valeurs de la colonne « Service en charge du traitement » qui rattachent un candidat à cette case.
 const CASES = [
-  { label: "SRAIOLDS", cle: "SRAIOLDS" },
-  { label: "DRAAF",    cle: "DRAAF" },
-  { label: "DSDEN 24", cle: "DSDEN_24" },
-  { label: "DSDEN 33", cle: "DSDEN_33" },
-  { label: "DSDEN 40", cle: "DSDEN_40" },
-  { label: "DSDEN 47", cle: "DSDEN_47" },
-  { label: "DSDEN 64", cle: "DSDEN_64" }
+  { label: "SRAIOLDS", cle: "SRAIOLDS", valeurs: ["SAIO", "SRAIOLDS"] },
+  { label: "DRAAF",    cle: "DRAAF",    valeurs: ["DRAAF"] },
+  { label: "DSDEN 24", cle: "DSDEN_24", valeurs: ["DSDEN 24"] },
+  { label: "DSDEN 33", cle: "DSDEN_33", valeurs: ["DSDEN 33"] },
+  { label: "DSDEN 40", cle: "DSDEN_40", valeurs: ["DSDEN 40"] },
+  { label: "DSDEN 47", cle: "DSDEN_47", valeurs: ["DSDEN 47"] },
+  { label: "DSDEN 64", cle: "DSDEN_64", valeurs: ["DSDEN 64"] }
 ];
 
-// Entrées créées quand une case est cochée.
-// "url" : adresse de la page Grist contenant la table visée (à copier depuis la barre d'adresse,
-// ex. https://.../o/docs/XXXX/NomDuDoc/p/12). Laisser vide tant qu'elle n'est pas connue.
+// Entrées affichées quand une case est cochée.
+// rendu : "affectation" = liste mise en forme (filtrée selon le service en charge) ; "tableau" = tableau simple.
+// tableId : identifiant Grist de la table (sans tiret). null = table pas encore précisée.
 const ENTREES = [
-  { classe: "e1", label: "Contrôle de la saisie des nomenclatures (février - avril)", table: null,               url: "" },
-  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",     table: "CONTROLES-1ERE",   url: "" },
-  { classe: "e3", label: "Contrôle de l'admission (juin)",                            table: "AFFECTATION-1ERE", url: "" },
-  { classe: "e4", label: "Saisie des places vacantes - Tours suivants (juillet - septembre)", table: null,       url: "" }
+  { classe: "e1", label: "Contrôle de la saisie des nomenclatures (février - avril)",         tableId: null,               rendu: "tableau" },
+  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",             tableId: "CONTROLES_1ERE",   rendu: "tableau" },
+  { classe: "e3", label: "Contrôle de l'admission (juin)",                                    tableId: "AFFECTATION_1ERE", rendu: "affectation" },
+  { classe: "e4", label: "Saisie des places vacantes - Tours suivants (juillet - septembre)", tableId: null,               rendu: "tableau" }
 ];
 
-/* ================== LOGIQUE ================== */
+// Colonnes de la table AFFECTATION_1ERE.
+// Le widget cherche chaque colonne par son libellé (motifs listés par ordre de préférence).
+// Si une colonne est mal détectée, renseignez "col" avec son libellé ou son identifiant exact.
+const CHAMPS_AFF = [
+  { cle: "ville",   nom: "Ville",               col: null, motifs: ["ville accueil", "ville etablissement", "ville"], exclure: ["origine"] },
+  { cle: "etab",    nom: "Établissement",       col: null, motifs: ["etablissement accueil", "etablissement d accueil", "etablissement", "lycee"], exclure: ["origine", "ville", "code", "uai"] },
+  { cle: "uai",     nom: "Code UAI",            col: null, motifs: ["code uai accueil", "uai accueil", "code uai", "uai"], exclure: ["origine"] },
+  { cle: "formAcc", nom: "Formation d'accueil", col: null, motifs: ["formation accueil", "formation d accueil", "formation"], exclure: ["origine"] },
+  { cle: "formOri", nom: "Formation d'origine", col: null, motifs: ["formation origine", "formation d origine"], exclure: [] },
+  { cle: "nom",     nom: "Nom",                 col: null, motifs: ["nom candidat", "nom eleve", "nom"], exclure: ["etablissement", "formation", "service", "prenom"] },
+  { cle: "prenom",  nom: "Prénom",              col: null, motifs: ["prenom candidat", "prenom eleve", "prenom"], exclure: ["etablissement", "formation"] },
+  { cle: "result",  nom: "Résultat",            col: null, motifs: ["resultat affectation", "resultat", "decision affectation", "decision", "affectation"], exclure: ["formation", "service"] },
+  { cle: "service", nom: "Service en charge du traitement", col: null, motifs: ["service en charge du traitement", "service en charge", "service"], exclure: [] }
+];
 
-let enregistrement = null;   // ligne courante de la table « Utilisateurs »
-let associees = {};          // cases dont la colonne est associée
-const grille  = document.getElementById("grille");
-const message = document.getElementById("message");
+/* ================== OUTILS ================== */
+
+const $ = function (id) { return document.getElementById(id); };
+function norm(s) {
+  return String(s === null || s === undefined ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+function sansEspaces(s) { return norm(s).replace(/ /g, ""); }
+function h(tag, cls, txt) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt !== undefined && txt !== null) e.textContent = txt;
+  return e;
+}
+function texte(v) {
+  if (v === null || v === undefined) return "";
+  if (v === true) return "✓";
+  if (v === false) return "";
+  if (Array.isArray(v)) return v.filter(function (x) { return x !== "L"; }).join(", ");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+/* ================== ACCUEIL ================== */
+
+let enregistrement = null;
+let associees = {};
+let vueOuverte = false;
+const grille = $("grille"), message = $("message");
 
 if (typeof grist === "undefined") {
   message.textContent = "Erreur : grist-plugin-api.js est introuvable. Vérifiez qu'il est bien dans le dépôt GitHub, à côté de index.html.";
 } else {
   grist.ready({
     requiredAccess: "full",
-    columns: CASES.map(function (c) {
-      return { name: c.cle, title: c.label, type: "Bool", optional: true };
-    })
+    columns: CASES.map(function (c) { return { name: c.cle, title: c.label, type: "Bool", optional: true }; })
   });
-
   grist.onRecord(function (rec, mappings) {
     associees = {};
     CASES.forEach(function (c) { associees[c.cle] = !!(mappings && mappings[c.cle]); });
     enregistrement = rec ? grist.mapColumnNames(rec) : null;
-    afficher();
+    if (!vueOuverte) afficher();
   });
 }
 
@@ -114,25 +214,21 @@ function afficher() {
   grille.innerHTML = "";
   if (!enregistrement) {
     message.textContent = "En attente d'une ligne de la table « Utilisateurs »… (cliquez sur une ligne ; vérifiez la source de données du widget)";
-    message.style.display = "";
+    message.classList.remove("cache");
     return;
   }
   const nb = CASES.filter(function (c) { return associees[c.cle]; }).length;
   if (nb === 0) {
     message.textContent = "Associez chaque case à sa colonne dans le panneau de droite (« Colonnes visibles »).";
-    message.style.display = "";
+    message.classList.remove("cache");
   } else {
-    message.style.display = "none";
+    message.classList.add("cache");
   }
 
   CASES.forEach(function (c) {
     const coche = !!enregistrement[c.cle];
-
-    const carte = document.createElement("div");
-    carte.className = "carte" + (coche ? " active" : "");
-
-    const lbl = document.createElement("label");
-    lbl.className = "case";
+    const carte = h("div", "carte" + (coche ? " active" : ""));
+    const lbl = h("label", "case");
     const cb = document.createElement("input");
     cb.type = "checkbox";
     cb.checked = coche;
@@ -143,8 +239,7 @@ function afficher() {
     carte.appendChild(lbl);
 
     if (coche) {
-      const bloc = document.createElement("div");
-      bloc.className = "entrees";
+      const bloc = h("div", "entrees");
       ENTREES.forEach(function (e) { bloc.appendChild(creerEntree(e, c)); });
       carte.appendChild(bloc);
     }
@@ -153,34 +248,275 @@ function afficher() {
 }
 
 function creerEntree(e, c) {
-  const ok = !!e.url;
-  const el = document.createElement(ok ? "a" : "div");
-  el.className = "entree " + e.classe + (ok ? "" : " inactif");
-  el.textContent = e.label;
-  if (ok) {
-    el.href = e.url;
-    el.target = "_blank";
-    el.rel = "noopener";
-  }
-  const info = document.createElement("small");
-  info.textContent = e.table ? "Table : " + e.table : "Table à préciser";
-  if (!ok) info.textContent += " · lien non configuré";
-  el.appendChild(info);
+  const el = h("button", "entree " + e.classe + (e.tableId ? "" : " inactif"), e.label);
+  el.type = "button";
+  el.appendChild(h("small", null, e.tableId ? "Table : " + e.tableId : "Table à préciser"));
+  if (e.tableId) el.addEventListener("click", function () {
+    if (e.rendu === "affectation") ouvrirAffectation(e, c); else ouvrirTable(e, c);
+  });
   return el;
 }
 
 async function basculer(c, valeur) {
   if (!enregistrement) return;
-  enregistrement[c.cle] = valeur;      // mise à jour immédiate de l'affichage
+  enregistrement[c.cle] = valeur;
   afficher();
   try {
     await grist.selectedTable.update({ id: enregistrement.id, fields: { [c.cle]: valeur } });
   } catch (err) {
     console.error("Échec de l'enregistrement :", err);
-    enregistrement[c.cle] = !valeur;   // retour arrière en cas d'erreur
+    enregistrement[c.cle] = !valeur;
     afficher();
   }
 }
+
+function retourAccueil() {
+  vueOuverte = false;
+  $("vueTable").classList.add("cache");
+  $("vueAff").classList.add("cache");
+  $("accueil").classList.remove("cache");
+  afficher();
+}
+$("retour").addEventListener("click", retourAccueil);
+$("retourAff").addEventListener("click", retourAccueil);
+
+/* ================== VUE TABLEAU GÉNÉRIQUE ================== */
+
+let colonnes = [], lignes = [];
+
+async function ouvrirTable(entree, c) {
+  vueOuverte = true;
+  $("accueil").classList.add("cache");
+  $("vueTable").classList.remove("cache");
+  $("titreTable").textContent = entree.label + " — " + c.label;
+  $("recherche").value = "";
+  $("compteur").textContent = "Chargement…";
+  $("tableau").innerHTML = "";
+  try {
+    const data = await grist.docApi.fetchTable(entree.tableId);
+    colonnes = Object.keys(data).filter(function (k) {
+      return k !== "id" && k !== "manualSort" && k.indexOf("gristHelper_") !== 0;
+    });
+    lignes = (data.id || []).map(function (_, i) {
+      const l = {};
+      colonnes.forEach(function (k) { l[k] = data[k][i]; });
+      return l;
+    });
+    dessiner();
+  } catch (err) {
+    console.error(err);
+    $("compteur").textContent = "Impossible de lire la table « " + entree.tableId + " » (identifiant correct ? même document ?).";
+  }
+}
+
+function dessiner() {
+  const q = $("recherche").value.trim().toLowerCase();
+  const vues = lignes.filter(function (l) {
+    return !q || colonnes.some(function (k) { return texte(l[k]).toLowerCase().indexOf(q) !== -1; });
+  });
+  const t = $("tableau");
+  t.innerHTML = "";
+  const thead = t.createTHead().insertRow();
+  colonnes.forEach(function (k) { thead.appendChild(h("th", null, k)); });
+  const tbody = t.createTBody();
+  vues.forEach(function (l) {
+    const tr = tbody.insertRow();
+    colonnes.forEach(function (k) { tr.insertCell().textContent = texte(l[k]); });
+  });
+  $("compteur").textContent = vues.length + " ligne(s)";
+}
+$("recherche").addEventListener("input", dessiner);
+
+/* ================== VUE AFFECTATION ================== */
+
+let candidats = [];   // lignes déjà filtrées sur le service en charge
+
+// Métadonnées des colonnes (libellé, type, colonne affichée des références).
+async function lireMeta(tableId) {
+  const T = await grist.docApi.fetchTable("_grist_Tables");
+  const C = await grist.docApi.fetchTable("_grist_Tables_column");
+  const ti = T.tableId.indexOf(tableId);
+  if (ti < 0) throw new Error("table introuvable");
+  const tid = T.id[ti];
+  const colIdParId = {};
+  C.id.forEach(function (id, i) { colIdParId[id] = C.colId[i]; });
+  const metas = [];
+  C.id.forEach(function (id, i) {
+    if (C.parentId[i] !== tid) return;
+    const colId = C.colId[i];
+    if (colId === "manualSort" || colId.indexOf("gristHelper_") === 0) return;
+    metas.push({ colId: colId, label: C.label[i] || colId, type: C.type[i] || "",
+                 visible: C.visibleCol && C.visibleCol[i] ? colIdParId[C.visibleCol[i]] : null });
+  });
+  return metas;
+}
+
+function trouverColonne(champ, metas) {
+  if (champ.col) {
+    const n = norm(champ.col);
+    return metas.find(function (m) { return norm(m.label) === n || norm(m.colId) === n; }) || null;
+  }
+  const ok = function (m) {
+    const n = norm(m.label), n2 = norm(m.colId);
+    return !champ.exclure.some(function (x) { return n.indexOf(x) !== -1 || n2.indexOf(x) !== -1; });
+  };
+  for (const mo of champ.motifs) {                       // 1) correspondance exacte
+    const m = metas.find(function (m) { return norm(m.label) === mo || norm(m.colId) === mo; });
+    if (m) return m;
+  }
+  for (const mo of champ.motifs) {                       // 2) libellé contenant le motif
+    const m = metas.find(function (m) { return ok(m) && (norm(m.label).indexOf(mo) !== -1 || norm(m.colId).indexOf(mo) !== -1); });
+    if (m) return m;
+  }
+  return null;
+}
+
+async function ouvrirAffectation(entree, c) {
+  vueOuverte = true;
+  $("accueil").classList.add("cache");
+  $("vueAff").classList.remove("cache");
+  $("titreAff").textContent = entree.label + " — " + c.label;
+  $("rechercheAff").value = "";
+  $("compteurAff").textContent = "Chargement…";
+  $("listeAff").innerHTML = "";
+  $("puces").innerHTML = "";
+  $("alerteAff").innerHTML = "";
+  $("diag").innerHTML = "";
+
+  try {
+    const data = await grist.docApi.fetchTable(entree.tableId);
+    let metas;
+    try { metas = await lireMeta(entree.tableId); }
+    catch (e) {
+      metas = Object.keys(data).filter(function (k) { return k !== "id" && k !== "manualSort" && k.indexOf("gristHelper_") !== 0; })
+        .map(function (k) { return { colId: k, label: k, type: "", visible: null }; });
+    }
+
+    // Détection des colonnes
+    const cols = {};
+    CHAMPS_AFF.forEach(function (ch) { cols[ch.cle] = trouverColonne(ch, metas); });
+    CHAMPS_AFF.forEach(function (ch) {
+      const li = h("li", null, ch.nom + " ← " + (cols[ch.cle] ? cols[ch.cle].label : "NON TROUVÉE"));
+      $("diag").appendChild(li);
+    });
+
+    // Résolution des colonnes de type référence (valeur affichée au lieu du numéro de ligne)
+    const resolu = {};
+    for (const ch of CHAMPS_AFF) {
+      const m = cols[ch.cle];
+      if (m && m.type.indexOf("Ref:") === 0) {
+        try {
+          const ref = await grist.docApi.fetchTable(m.type.slice(4));
+          const cible = m.visible && ref[m.visible] ? m.visible : null;
+          const dict = {};
+          ref.id.forEach(function (id, i) { dict[id] = cible ? ref[cible][i] : id; });
+          resolu[ch.cle] = dict;
+        } catch (e) { /* on garde la valeur brute */ }
+      }
+    }
+    const valeur = function (cle, i) {
+      const m = cols[cle];
+      if (!m || !data[m.colId]) return "";
+      const v = data[m.colId][i];
+      return texte(resolu[cle] && resolu[cle][v] !== undefined ? resolu[cle][v] : v);
+    };
+
+    if (!cols.service) {
+      $("alerteAff").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucun candidat n'est affiché afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_AFF (champ « col »)."));
+      candidats = [];
+    } else {
+      const attendues = c.valeurs.map(sansEspaces);
+      candidats = [];
+      (data.id || []).forEach(function (_, i) {
+        if (attendues.indexOf(sansEspaces(valeur("service", i))) === -1) return;
+        candidats.push({
+          ville: valeur("ville", i), etab: valeur("etab", i), uai: valeur("uai", i),
+          formAcc: valeur("formAcc", i), formOri: valeur("formOri", i),
+          nom: valeur("nom", i), prenom: valeur("prenom", i), result: valeur("result", i)
+        });
+      });
+    }
+    dessinerAff();
+  } catch (err) {
+    console.error(err);
+    $("compteurAff").textContent = "Impossible de lire la table « " + entree.tableId + " » (identifiant correct ? même document ?).";
+  }
+}
+
+function classeResultat(r) {
+  const n = norm(r);
+  if (!n) return "neutre";
+  if (/\b(non|refus|refuse|rejet|rejete|pas)\b/.test(n)) return "ko";
+  if (/(attente|liste|en cours|provisoire)/.test(n)) return "att";
+  if (/(affect|admis|accept|oui|valide)/.test(n)) return "ok";
+  return "neutre";
+}
+
+function dessinerAff() {
+  const q = norm($("rechercheAff").value);
+  const vus = candidats.filter(function (k) {
+    return !q || norm([k.ville, k.etab, k.uai, k.formAcc, k.formOri, k.nom, k.prenom, k.result].join(" ")).indexOf(q) !== -1;
+  });
+
+  // Puces de synthèse
+  const puces = $("puces");
+  puces.innerHTML = "";
+  const compte = {};
+  vus.forEach(function (k) { const r = k.result || "Sans résultat"; compte[r] = (compte[r] || 0) + 1; });
+  const p0 = h("span", "puce"); p0.innerHTML = "<b></b> candidat(s)"; p0.firstChild.textContent = vus.length; puces.appendChild(p0);
+  Object.keys(compte).sort().forEach(function (r) {
+    const p = h("span", "puce"); p.appendChild(h("b", null, compte[r])); p.appendChild(document.createTextNode(" · " + r)); puces.appendChild(p);
+  });
+
+  // Regroupement ville → établissement
+  const villes = {};
+  vus.forEach(function (k) {
+    const v = k.ville || "Ville non renseignée";
+    const e = (k.etab || "Établissement non renseigné") + "||" + k.uai;
+    villes[v] = villes[v] || {};
+    (villes[v][e] = villes[v][e] || []).push(k);
+  });
+
+  const liste = $("listeAff");
+  liste.innerHTML = "";
+  const nomsVilles = Object.keys(villes).sort(function (a, b) { return a.localeCompare(b, "fr"); });
+  if (!nomsVilles.length) liste.appendChild(h("div", "vide", "Aucun candidat à afficher pour cette structure."));
+
+  nomsVilles.forEach(function (v) {
+    const total = Object.keys(villes[v]).reduce(function (s, e) { return s + villes[v][e].length; }, 0);
+    const det = h("details", "ville");
+    det.open = true;
+    const sum = h("summary");
+    sum.appendChild(h("span", null, "📍 " + v));
+    sum.appendChild(h("span", "nbville", total + " candidat(s)"));
+    det.appendChild(sum);
+
+    Object.keys(villes[v]).sort(function (a, b) { return a.localeCompare(b, "fr"); }).forEach(function (e) {
+      const parts = e.split("||");
+      const bloc = h("div", "etab");
+      const tete = h("div", "etabtete");
+      tete.appendChild(h("span", "etabnom", parts[0]));
+      if (parts[1]) tete.appendChild(h("span", "uai", "UAI " + parts[1]));
+      bloc.appendChild(tete);
+
+      villes[v][e].sort(function (a, b) { return (a.nom + a.prenom).localeCompare(b.nom + b.prenom, "fr"); }).forEach(function (k) {
+        const ligne = h("div", "cand");
+        ligne.appendChild(h("div", "candnom", (k.nom + " " + k.prenom).trim() || "—"));
+        const f = h("div", "formations");
+        const a = h("div"); a.appendChild(document.createTextNode("Origine : ")); a.appendChild(h("span", "fl", k.formOri || "—")); f.appendChild(a);
+        const b = h("div"); b.appendChild(document.createTextNode("Accueil : ")); b.appendChild(h("span", "fl", k.formAcc || "—")); f.appendChild(b);
+        ligne.appendChild(f);
+        ligne.appendChild(h("span", "badge " + classeResultat(k.result), k.result || "Sans résultat"));
+        bloc.appendChild(ligne);
+      });
+      det.appendChild(bloc);
+    });
+    det.appendChild(h("div", null)).style.height = "8px";
+    liste.appendChild(det);
+  });
+  $("compteurAff").textContent = vus.length + " / " + candidats.length;
+}
+$("rechercheAff").addEventListener("input", dessinerAff);
 </script>
 </body>
 </html>
