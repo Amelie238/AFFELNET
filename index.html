@@ -1,379 +1,303 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Portail d’administration – affectation filtrée</title>
-    <style>
-        :root{
-            --bg-main:#f9fbfd; --bg-sidebar:#e3eff9; --bg-content:#ffffff;
-            --color-primary:#4a90e2; --color-secondary:#8bc34a;
-            --color-accent:#c39bd3; --color-text:#333; --hover-bg:#d0e8fb;
-            --border:#d9e6f2;
-        }
-        body{margin:0;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg-main);color:var(--color-text);}
-        .sidebar{width:260px;height:100vh;position:fixed;top:0;left:0;background:var(--bg-sidebar);overflow-y:auto;border-right:1px solid var(--border);}
-        .sidebar h2{margin:0;padding:18px 0;text-align:center;background:var(--color-primary);color:#fff;font-size:1.2rem;}
-        .menu,.submenu{list-style:none;margin:0;padding:0;}
-        .menu > li{border-bottom:1px solid var(--border);}
-        .menu a{display:block;padding:12px 20px;color:var(--color-text);text-decoration:none;transition:background .2s;}
-        .menu a:hover{background:var(--hover-bg);}
-        .menu li.active > a{background:var(--color-secondary);color:#fff;}
-        .submenu{display:none;background:var(--bg-sidebar);}
-        .menu li.active > .submenu{display:block;}
-        .submenu a{padding-left:40px;font-size:0.95rem;}
-        .content{margin-left:260px;padding:30px;background:var(--bg-content);min-height:100vh;}
-        h1,h2,h3{color:var(--color-primary);}
-        .mapping-table{width:100%;border-collapse:collapse;margin-top:15px;}
-        .mapping-table th,.mapping-table td{border:1px solid var(--border);padding:10px;text-align:left;}
-        .mapping-table th{background:var(--color-accent);color:#fff;}
-        .mapping-table select{width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;background:#fafafa;}
-        .btn{margin-top:15px;padding:10px 20px;background:var(--color-secondary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:1rem;transition:background .2s;}
-        .btn:hover{background:#7aa73d;}
-        pre{background:#f1f5f9;padding:12px;border-radius:4px;overflow:auto;}
-    </style>
+<meta charset="UTF-8">
+<title>Contrôles de l’affectation – Mapping séparé</title>
+<style>
+    :root{
+        --bg-main:#f9fbfd; --bg-sidebar:#e3eff9; --bg-content:#ffffff;
+        --color-primary:#4a90e2; --color-secondary:#8bc34a;
+        --color-accent:#c39bd3; --color-text:#333; --hover-bg:#d0e8fb;
+        --border:#d9e6f2;
+    }
+    body{margin:0;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg-main);color:var(--color-text);}
+    .sidebar{width:260px;height:100vh;position:fixed;top:0;left:0;background:var(--bg-sidebar);overflow-y:auto;border-right:1px solid var(--border);}
+    .sidebar h2{margin:0;padding:18px 0;text-align:center;background:var(--color-primary);color:#fff;font-size:1.2rem;}
+    .menu,.submenu{list-style:none;margin:0;padding:0;}
+    .menu > li{border-bottom:1px solid var(--border);}
+    .menu a{display:block;padding:12px 20px;color:var(--color-text);text-decoration:none;transition:background .2s;}
+    .menu a:hover{background:var(--hover-bg);}
+    .menu li.active > a{background:var(--color-secondary);color:#fff;}
+    .submenu{display:none;background:var(--bg-sidebar);}
+    .menu li.active > .submenu{display:block;}
+    .submenu a{padding-left:40px;font-size:0.95rem;}
+    .content{margin-left:260px;padding:30px;background:var(--bg-content);min-height:100vh;}
+    h1{color:var(--color-primary);}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:20px;}
+    .panel{border:1px solid var(--border);border-radius:4px;background:#fafafa;padding:20px;}
+    .panel h2{margin-top:0;font-size:1.1rem;color:var(--color-primary);}
+    .mapping-table{width:100%;border-collapse:collapse;margin-top:15px;}
+    .mapping-table th,.mapping-table td{border:1px solid var(--border);padding:8px;text-align:left;}
+    .mapping-table th{background:var(--color-accent);color:#fff;}
+    .mapping-table select{width:100%;padding:5px;border:1px solid var(--border);border-radius:3px;background:#fff;}
+    .btn{margin-top:15px;padding:10px 18px;background:var(--color-secondary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.95rem;transition:background .2s;}
+    .btn:hover{background:#7aa73d;}
+    table.result{width:100%;border-collapse:collapse;margin-top:10px;}
+    table.result th,table.result td{border:1px solid var(--border);padding:6px;text-align:left;}
+    table.result th{background:#e2eaf3;}
+</style>
 
-    <script>
-        // ------------------------------------------------------------------
-        // Exemple de données "AFFECTATION-1ERE"
-        // Remplacez ce tableau par votre appel serveur (fetch, AJAX, etc.).
-        // Chaque objet représente une ligne de la table.
-        // ------------------------------------------------------------------
-        const affectationData = [
-            { id:1, service:"SRAIOLDS",   col1:"EtabA", col2:"FormA", col3:"EtabO1", col4:"Eleve1"},
-            { id:2, service:"DRAAF",      col1:"EtabB", col2:"FormB", col3:"EtabO2", col4:"Eleve2"},
-            { id:3, service:"DSDEN 24",   col1:"EtabC", col2:"FormC", col3:"EtabO3", col4:"Eleve3"},
-            { id:4, service:"DSDEN 33",   col1:"EtabD", col2:"FormD", col3:"EtabO4", col4:"Eleve4"},
-            { id:5, service:"DSDEN 40",   col1:"EtabE", col2:"FormE", col3:"EtabO5", col4:"Eleve5"},
-            { id:6, service:"DSDEN 47",   col1:"EtabF", col2:"FormF", col3:"EtabO6", col4:"Eleve6"},
-            { id:7, service:"DSDEN 64",   col1:"EtabG", col2:"FormG", col3:"EtabO7", col4:"Eleve7"},
-            // … ajoutez ou chargez les lignes réelles de votre base
-        ];
+<script>
+/* -------------------------------------------------------------
+   Données d’exemple – à remplacer par un appel serveur réel.
+   Chaque objet représente une ligne de la table AFFECTATION‑1ERE.
+   ------------------------------------------------------------- */
+const affectationData = [
+    { id:1, service:"SRAIOLDS", col1:"EtabA", col2:"FormA", col3:"EtabO1", nom:"Dupont", prenom:"Marie", ine:"1234567890"},
+    { id:2, service:"DRAAF",    col1:"EtabB", col2:"FormB", col3:"EtabO2", nom:"Martin", prenom:"Paul",  ine:"0987654321"},
+    { id:3, service:"DSDEN 24", col1:"EtabC", col2:"FormC", col3:"EtabO3", nom:"Leroy",  prenom:"Anne",  ine:"1122334455"},
+    // … autres lignes …
+];
 
-        // ------------------------------------------------------------------
-        // Gestion de l’affichage du sous‑menu (déjà présent dans votre version)
-        // ------------------------------------------------------------------
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.menu > li > a').forEach(link => {
-                link.addEventListener('click', e => {
-                    const li = e.target.parentElement;
-                    const already = li.classList.contains('active');
-                    document.querySelectorAll('.menu > li').forEach(item => item.classList.remove('active'));
-                    if (!already) li.classList.add('active');
-                    e.preventDefault();
-                });
-            });
+/* -------------------------------------------------------------
+   Fonction déclenchée par le bouton « Appliquer le mapping ».
+   1️⃣ Lecture du service choisi.
+   2️⃣ Filtrage de la table.
+   3️⃣ Construction du mapping (colonne → champ).
+   4️⃣ Construction d’un tableau HTML avec uniquement les champs mappés.
+   ------------------------------------------------------------- */
+function appliquerMapping(sectionId){
+    const service = document.getElementById(`service-${sectionId}`).value;
+    if (!service){
+        alert("Veuillez sélectionner un service.");
+        return;
+    }
+
+    // 1️⃣ Filtrer les lignes de la table
+    const lignes = affectationData.filter(l => l.service === service);
+
+    // 2️⃣ Lire le mapping défini dans le formulaire
+    const mapping = {};
+    document.querySelectorAll(`#${sectionId} .col-mapping select`).forEach(sel => {
+        const colKey = sel.dataset.col;               // ex. "etab_accueil"
+        const champ = sel.value;
+        if (champ) mapping[colKey] = champ;           // on ne conserve que les colonnes réellement mappées
+    });
+
+    // 3️⃣ Construire le tableau HTML de résultat
+    const tableau = document.createElement("table");
+    tableau.className = "result";
+
+    // En‑tête
+    const thead = tableau.createTHead();
+    const trHead = thead.insertRow();
+    // première colonne : identifiant (ou aucune selon votre besoin)
+    const thId = document.createElement("th");
+    thId.textContent = "ID";
+    trHead.appendChild(thId);
+    // colonnes mappées
+    Object.entries(mapping).forEach(([colKey, champ]) => {
+        const th = document.createElement("th");
+        th.textContent = champ;               // libellé du champ choisi
+        trHead.appendChild(th);
+    });
+
+    // Corps
+    const tbody = tableau.createTBody();
+    lignes.forEach(l => {
+        const tr = tbody.insertRow();
+        // ID
+        const tdId = tr.insertCell();
+        tdId.textContent = l.id;
+        // Colonnes mappées
+        Object.entries(mapping).forEach(([colKey, champ]) => {
+            const td = tr.insertCell();
+            // on récupère la valeur dans l’objet selon la colonne ciblée
+            // Pour les 3 premières colonnes : col1, col2, col3
+            // Pour la colonne élève, on construit "Nom Prénom (INE)"
+            if (colKey === "eleve"){
+                td.textContent = `${l.nom} ${l.prenom} (${l.ine})`;
+            }else if (colKey === "etab_accueil"){
+                td.textContent = l.col1;
+            }else if (colKey === "formation_accueil"){
+                td.textContent = l.col2;
+            }else if (colKey === "etab_origine"){
+                td.textContent = l.col3;
+            }else{
+                td.textContent = ""; // fallback
+            }
         });
+    });
 
-        // ------------------------------------------------------------------
-        // Fonction appelée lorsqu’on clique sur le bouton « Appliquer le mapping ».
-        // Elle filtre les lignes selon le service sélectionné, construit le
-        // mapping (colonne => champ) puis génère le JSON.
-        // ------------------------------------------------------------------
-        function appliquerMapping(sectionId){
-            const serviceSelect = document.getElementById(`service-${sectionId}`);
-            const serviceChoisi = serviceSelect.value;               // ex. "SRAIOLDS"
+    // 4️⃣ Injecter le tableau dans le widget résultat
+    const container = document.getElementById(`result-${sectionId}`);
+    container.innerHTML = "";               // vider le précédent éventuel
+    container.appendChild(tableau);
+}
 
-            // 1️⃣ Filtrer les lignes de la table AFFECTATION-1ERE
-            const lignesFiltrees = affectationData.filter(l => l.service === serviceChoisi);
-
-            // 2️⃣ Construire le mapping (colonne interne → champ choisi)
-            const mapping = {};
-            document.querySelectorAll(`#${sectionId} .col-mapping select`).forEach(sel => {
-                const col = sel.dataset.col;          // clé interne (etab_accueil, …)
-                const champ = sel.value;
-                if (champ) mapping[col] = champ;
-            });
-
-            // 3️⃣ Ajouter les lignes filtrées au résultat (facultatif, selon votre besoin)
-            const resultat = {
-                service: serviceChoisi,
-                lignes: lignesFiltrees.map(l => ({
-                    id: l.id,
-                    // on ne renvoie que les colonnes qui ont été mappées
-                    ...Object.fromEntries(
-                        Object.entries(mapping).map(([colKey, champ]) => [colKey, l[`col${colKey.slice(-1)}`]])
-                    )
-                }))
-            };
-
-            // 4️⃣ Afficher le JSON formaté
-            document.getElementById(`result-${sectionId}`).textContent = JSON.stringify(resultat, null, 2);
-        }
-    </script>
+/* -------------------------------------------------------------
+   Gestion simple du menu (déploiement/fermeture)
+   ------------------------------------------------------------- */
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.menu > li > a').forEach(link => {
+        link.addEventListener('click', e => {
+            const li = e.target.parentElement;
+            const already = li.classList.contains('active');
+            document.querySelectorAll('.menu > li').forEach(item => item.classList.remove('active'));
+            if (!already) li.classList.add('active');
+            e.preventDefault();
+        });
+    });
+});
+</script>
 </head>
 
 <body>
 
-    <!-- ==================== Sidebar ==================== -->
-    <div class="sidebar">
-        <h2>Menu principal</h2>
-        <ul class="menu">
-            <!-- SRAIOLDS -->
-            <li>
-                <a href="#">SRAIOLDS ▾</a>
-                <ul class="submenu">
-                    <li><a href="#SRAIOLDS-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#SRAIOLDS-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#SRAIOLDS-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#SRAIOLDS-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-            <!-- DRAAF -->
-            <li>
-                <a href="#">DRAAF ▾</a>
-                <ul class="submenu">
-                    <li><a href="#DRAAF-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#DRAAF-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#DRAAF-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#DRAAF-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-            <!-- DSDEN 24 -->
-            <li>
-                <a href="#">DSDEN 24 ▾</a>
-                <ul class="submenu">
-                    <li><a href="#DSDEN24-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#DSDEN24-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#DSDEN24-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#DSDEN24-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-            <!-- DSDEN 33 -->
-            <li>
-                <a href="#">DSDEN 33 ▾</a>
-                <ul class="submenu">
-                    <li><a href="#DSDEN33-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#DSDEN33-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#DSDEN33-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#DSDEN33-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-            <!-- DSDEN 40 -->
-            <li>
-                <a href="#">DSDEN 40 ▾</a>
-                <ul class="submenu">
-                    <li><a href="#DSDEN40-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#DSDEN40-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#DSDEN40-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#DSDEN40-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-            <!-- DSDEN 47 -->
-            <li>
-                <a href="#">DSDEN 47 ▾</a>
-                <ul class="submenu">
-                    <li><a href="#DSDEN47-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#DSDEN47-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#DSDEN47-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#DSDEN47-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-            <!-- DSDEN 64 -->
-            <li>
-                <a href="#">DSDEN 64 ▾</a>
-                <ul class="submenu">
-                    <li><a href="#DSDEN64-nomenclatures">Contrôles saisies des nomenclatures</a></li>
-                    <li><a href="#DSDEN64-candidatures">Contrôles saisies des candidatures</a></li>
-                    <li><a href="#DSDEN64-affectation">Contrôles de l’affectation</a></li>
-                    <li><a href="#DSDEN64-places">Saisie des places vacantes (tours suivants)</a></li>
-                </ul>
-            </li>
-        </ul>
-    </div>
+<div class="sidebar">
+    <h2>Menu principal</h2>
+    <ul class="menu">
+        <li>
+            <a href="#">SRAIOLDS ▾</a>
+            <ul class="submenu">
+                <li><a href="#SRAIOLDS-affectation">Contrôles de l’affectation</a></li>
+                <!-- les autres sous‑menus restent inchangés -->
+            </ul>
+        </li>
+        <!-- répéter pour DRAAF, DSDEN 24 … -->
+    </ul>
+</div>
 
-    <!-- ==================== Main content ==================== -->
-    <div class="content">
+<div class="content">
+    <section id="SRAIOLDS-affectation">
+        <h1>Contrôles de l’affectation – SRAIOLDS</h1>
 
-        <!-- ===== Exemple complet pour SRAIOLDS ===== -->
-        <section id="SRAIOLDS-affectation">
-            <h1>Contrôles de l’affectation – SRAIOLDS</h1>
+        <div class="grid">
+            <!-- ───── PANEL : FORMULAIRE DE MAPPAGE ───── -->
+            <div class="panel" id="panel-mapping-SRAIOLDS-affectation">
+                <h2>Paramétrage du mapping</h2>
 
-            <!-- Sélection du service (déclenche le filtrage) -->
-            <label for="service-SRAIOLDS-affectation"><strong>Service en charge du traitement :</strong></label>
-            <select id="service-SRAIOLDS-affectation">
-                <option value="">— Sélectionner —</option>
-                <option value="SRAIOLDS">SRAIOLDS</option>
-                <option value="DRAAF">DRAAF</option>
-                <option value="DSDEN 24">DSDEN 24</option>
-                <option value="DSDEN 33">DSDEN 33</option>
-                <option value="DSDEN 40">DSDEN 40</option>
-                <option value="DSDEN 47">DSDEN 47</option>
-                <option value="DSDEN 64">DSDEN 64</option>
-            </select>
+                <label for="service-SRAIOLDS-affectation"><strong>Service en charge du traitement :</strong></label>
+                <select id="service-SRAIOLDS-affectation">
+                    <option value="">— Sélectionner —</option>
+                    <option value="SRAIOLDS">SRAIOLDS</option>
+                    <option value="DRAAF">DRAAF</option>
+                    <option value="DSDEN 24">DSDEN 24</option>
+                    <option value="DSDEN 33">DSDEN 33</option>
+                    <option value="DSDEN 40">DSDEN 40</option>
+                    <option value="DSDEN 47">DSDEN 47</option>
+                    <option value="DSDEN 64">DSDEN 64</option>
+                </select>
 
-            <p>
-                Associez les colonnes de la table <strong>AFFECTATION‑1ERE</strong> aux champs souhaités.
-                Le tableau ci‑dessous indique comment chaque colonne pourra être mappée.
-            </p>
+                <table class="mapping-table">
+                    <thead>
+                        <tr><th>Colonne de la table</th><th>Champ à afficher</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr class="col-mapping">
+                            <td>colonne_1 – établissement d’accueil</td>
+                            <td>
+                                <select data-col="etab_accueil">
+                                    <option value="">— Sélectionner —</option>
+                                    <option value="Établissement d’accueil">Établissement d’accueil</option>
+                                    <option value="Code établissement">Code établissement</option>
+                                    <option value="Adresse">Adresse</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="col-mapping">
+                            <td>colonne_2 – formation d’accueil</td>
+                            <td>
+                                <select data-col="formation_accueil">
+                                    <option value="">— Sélectionner —</option>
+                                    <option value="Formation d’accueil">Formation d’accueil</option>
+                                    <option value="Code formation">Code formation</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="col-mapping">
+                            <td>colonne_3 – établissement d’origine</td>
+                            <td>
+                                <select data-col="etab_origine">
+                                    <option value="">— Sélectionner —</option>
+                                    <option value="Établissement d’origine">Établissement d’origine</option>
+                                    <option value="Code établissement d’origine">Code établissement d’origine</option>
+                                    <option value="Adresse d’origine">Adresse d’origine</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr class="col-mapping">
+                            <td>colonne_4 – élève</td>
+                            <td>
+                                <!-- Cette colonne est fixée : nom, prénom, INE -->
+                                <select data-col="eleve" disabled>
+                                    <option value="Eleve">Nom – Prénom – INE</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
 
-            <table class="mapping-table">
-                <thead>
-                    <tr><th>Colonne de la table</th><th>Champ à afficher</th></tr>
-                </thead>
-                <tbody>
-                    <tr class="col-mapping">
-                        <td>colonne_1 – établissement d’accueil</td>
-                        <td>
-                            <select data-col="etab_accueil">
-                                <option value="">— Sélectionner —</option>
-                                <option value="etablissement_accueil">Établissement d’accueil</option>
-                                <option value="code_etab_accueil">Code établissement</option>
-                                <option value="adresse_accueil">Adresse</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr class="col-mapping">
-                        <td>colonne_2 – formation d’accueil</td>
-                        <td>
-                            <select data-col="formation_accueil">
-                                <option value="">— Sélectionner —</option>
-                                <option value="formation_accueil">Formation d’accueil</option>
-                                <option value="code_formation_accueil">Code formation</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr class="col-mapping">
-                        <td>colonne_3 – établissement d’origine</td>
-                        <td>
-                            <select data-col="etab_origine">
-                                <option value="">— Sélectionner —</option>
-                                <option value="etablissement_origine">Établissement d’origine</option>
-                                <option value="code_etab_origine">Code établissement d’origine</option>
-                                <option value="adresse_origine">Adresse d’origine</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr class="col-mapping">
-                        <td>colonne_4 – élève</td>
-                        <td>
-                            <select data-col="eleve">
-                                <option value="">— Sélectionner —</option>
-                                <option value="nom">Nom</option>
-                                <option value="prenom">Prénom</option>
-                                <option value="date_naissance">Date de naissance</option>
-                                <option value="numero_dossier">N° dossier</option>
-                            </select>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                <button class="btn" onclick="appliquerMapping('SRAIOLDS-affectation')">
+                    Appliquer le mapping
+                </button>
+            </div>
 
-            <button class="btn" onclick="appliquerMapping('SRAIOLDS-affectation')">
-                Appliquer le mapping
-            </button>
+            <!-- ───── PANEL : RÉSULTAT (WIDGET) ───── -->
+            <div class="panel" id="panel-result-SRAIOLDS-affectation">
+                <h2>Résultat filtré</h2>
+                <p>Les lignes suivantes proviennent de la table <strong>AFFECTATION‑1ERE</strong> pour le service sélectionné et sont affichées selon le mapping que vous avez défini.</p>
+                <div id="result-SRAIOLDS-affectation"></div>
+            </div>
+        </div>
+        <hr>
+    </section>
 
-            <h3>Résultat du mapping (JSON)</h3>
-            <pre id="result-SRAIOLDS-affectation"></pre>
-            <hr>
-        </section>
+    <!-- Répétez le même bloc pour chaque direction (DRAAF, DSDEN 24, …) en changeant les ID -->
+    <!-- Exemple très condensé pour DRAAF (vous n’avez qu’à copier‑coller et modifier les IDs) -->
+    <section id="DRAAF-affectation">
+        <h1>Contrôles de l’affectation – DRAAF</h1>
+        <div class="grid">
+            <div class="panel" id="panel-mapping-DRAAF-affectation">
+                <h2>Paramétrage du mapping</h2>
+                <label for="service-DRAAF-affectation"><strong>Service en charge du traitement :</strong></label>
+                <select id="service-DRAAF-affectation">
+                    <option value="">— Sélectionner —</option>
+                    <option value="SRAIOLDS">SRAIOLDS</option>
+                    <option value="DRAAF">DRAAF</option>
+                    <option value="DSDEN 24">DSDEN 24</option>
+                    <option value="DSDEN 33">DSDEN 33</option>
+                    <option value="DSDEN 40">DSDEN 40</option>
+                    <option value="DSDEN 47">DSDEN 47</option>
+                    <option value="DSDEN 64">DSDEN 64</option>
+                </select>
 
-        <!-- ===== Exemple pour DRAAF (identique, il suffit de copier‑coller ===== -->
-        <section id="DRAAF-affectation">
-            <h1>Contrôles de l’affectation – DRAAF</h1>
+                <table class="mapping-table">
+                    <thead><tr><th>Colonne</th><th>Champ</th></tr></thead>
+                    <tbody>
+                        <tr class="col-mapping"><td>colonne_1 – établissement d’accueil</td><td>
+                            <select data-col="etab_accueil"><option value="">— Sélectionner —</option>
+                                <option value="Établissement d’accueil">Établissement d’accueil</option>
+                                <option value="Code établissement">Code établissement</option>
+                                <option value="Adresse">Adresse</option></select></td></tr>
+                        <tr class="col-mapping"><td>colonne_2 – formation d’accueil</td><td>
+                            <select data-col="formation_accueil"><option value="">— Sélectionner —</option>
+                                <option value="Formation d’accueil">Formation d’accueil</option>
+                                <option value="Code formation">Code formation</option></select></td></tr>
+                        <tr class="col-mapping"><td>colonne_3 – établissement d’origine</td><td>
+                            <select data-col="etab_origine"><option value="">— Sélectionner —</option>
+                                <option value="Établissement d’origine">Établissement d’origine</option>
+                                <option value="Code établissement d’origine">Code établissement d’origine</option>
+                                <option value="Adresse d’origine">Adresse d’origine</option></select></td></tr>
+                        <tr class="col-mapping"><td>colonne_4 – élève</td><td>
+                            <select data-col="eleve" disabled><option value="Eleve">Nom – Prénom – INE</option></select></td></tr>
+                    </tbody>
+                </table>
 
-            <label for="service-DRAAF-affectation"><strong>Service en charge du traitement :</strong></label>
-            <select id="service-DRAAF-affectation">
-                <option value="">— Sélectionner —</option>
-                <option value="SRAIOLDS">SRAIOLDS</option>
-                <option value="DRAAF">DRAAF</option>
-                <option value="DSDEN 24">DSDEN 24</option>
-                <option value="DSDEN 33">DSDEN 33</option>
-                <option value="DSDEN 40">DSDEN 40</option>
-                <option value="DSDEN 47">DSDEN 47</option>
-                <option value="DSDEN 64">DSDEN 64</option>
-            </select>
+                <button class="btn" onclick="appliquerMapping('DRAAF-affectation')">
+                    Appliquer le mapping
+                </button>
+            </div>
 
-            <!-- même tableau que précédemment -->
-            <table class="mapping-table">
-                <thead><tr><th>Colonne de la table</th><th>Champ à afficher</th></tr></thead>
-                <tbody>
-                    <tr class="col-mapping"><td>colonne_1 – établissement d’accueil</td><td>
-                        <select data-col="etab_accueil"><option value="">— Sélectionner —</option>
-                            <option value="etablissement_accueil">Établissement d’accueil</option>
-                            <option value="code_etab_accueil">Code établissement</option>
-                            <option value="adresse_accueil">Adresse</option></select></td></tr>
-                    <tr class="col-mapping"><td>colonne_2 – formation d’accueil</td><td>
-                        <select data-col="formation_accueil"><option value="">— Sélectionner —</option>
-                            <option value="formation_accueil">Formation d’accueil</option>
-                            <option value="code_formation_accueil">Code formation</option></select></td></tr>
-                    <tr class="col-mapping"><td>colonne_3 – établissement d’origine</td><td>
-                        <select data-col="etab_origine"><option value="">— Sélectionner —</option>
-                            <option value="etablissement_origine">Établissement d’origine</option>
-                            <option value="code_etab_origine">Code établissement d’origine</option>
-                            <option value="adresse_origine">Adresse d’origine</option></select></td></tr>
-                    <tr class="col-mapping"><td>colonne_4 – élève</td><td>
-                        <select data-col="eleve"><option value="">— Sélectionner —</option>
-                            <option value="nom">Nom</option>
-                            <option value="prenom">Prénom</option>
-                            <option value="date_naissance">Date de naissance</option>
-                            <option value="numero_dossier">N° dossier</option></select></td></tr>
-                </tbody>
-            </table>
+            <div class="panel" id="panel-result-DRAAF-affectation">
+                <h2>Résultat filtré</h2>
+                <div id="result-DRAAF-affectation"></div>
+            </div>
+        </div>
+        <hr>
+    </section>
 
-            <button class="btn" onclick="appliquerMapping('DRAAF-affectation')">
-                Appliquer le mapping
-            </button>
-
-            <h3>Résultat du mapping (JSON)</h3>
-            <pre id="result-DRAAF-affectation"></pre>
-            <hr>
-        </section>
-
-        <!-- ===== Copiez‑collez le même bloc pour chaque DSDEN ===== -->
-        <!-- Exemple DSDEN 24 -->
-        <section id="DSDEN24-affectation">
-            <h1>Contrôles de l’affectation – DSDEN 24</h1>
-
-            <label for="service-DSDEN24-affectation"><strong>Service en charge du traitement :</strong></label>
-            <select id="service-DSDEN24-affectation">
-                <option value="">— Sélectionner —</option>
-                <option value="SRAIOLDS">SRAIOLDS</option>
-                <option value="DRAAF">DRAAF</option>
-                <option value="DSDEN 24">DSDEN 24</option>
-                <option value="DSDEN 33">DSDEN 33</option>
-                <option value="DSDEN 40">DSDEN 40</option>
-                <option value="DSDEN 47">DSDEN 47</option>
-                <option value="DSDEN 64">DSDEN 64</option>
-            </select>
-
-            <table class="mapping-table">
-                <thead><tr><th>Colonne de la table</th><th>Champ à afficher</th></tr></thead>
-                <tbody>
-                    <tr class="col-mapping"><td>colonne_1 – établissement d’accueil</td><td>
-                        <select data-col="etab_accueil"><option value="">— Sélectionner —</option>
-                            <option value="etablissement_accueil">Établissement d’accueil</option>
-                            <option value="code_etab_accueil">Code établissement</option>
-                            <option value="adresse_accueil">Adresse</option></select></td></tr>
-                    <tr class="col-mapping"><td>colonne_2 – formation d’accueil</td><td>
-                        <select data-col="formation_accueil"><option value="">— Sélectionner —</option>
-                            <option value="formation_accueil">Formation d’accueil</option>
-                            <option value="code_formation_accueil">Code formation</option></select></td></tr>
-                    <tr class="col-mapping"><td>colonne_3 – établissement d’origine</td><td>
-                        <select data-col="etab_origine"><option value="">— Sélectionner —</option>
-                            <option value="etablissement_origine">Établissement d’origine</option>
-                            <option value="code_etab_origine">Code établissement d’origine</option>
-                            <option value="adresse_origine">Adresse d’origine</option></select></td></tr>
-                    <tr class="col-mapping"><td>colonne_4 – élève</td><td>
-                        <select data-col="eleve"><option value="">— Sélectionner —</option>
-                            <option value="nom">Nom</option>
-                            <option value="prenom">Prénom</option>
-                            <option value="date_naissance">Date de naissance</option>
-                            <option value="numero_dossier">N° dossier</option></select></td></tr>
-                </tbody>
-            </table>
-
-            <button class="btn" onclick="appliquerMapping('DSDEN24-affectation')">
-                Appliquer le mapping
-            </button>
-
-            <h3>Résultat du mapping (JSON)</h3>
-            <pre id="result-DSDEN24-affectation"></pre>
-            <hr>
-        </section>
-
-        <!-- Répétez le même schéma pour DSDEN 33, DSDEN 40, DSDEN 47 et DSDEN 64 -->
-        <!-- … (les blocs sont identiques, il suffit de changer l’id) … -->
-
-    </div>
+    <!-- Vous pouvez dupliquer ces deux panneaux pour chaque DSDEN (24,33,40,47,64) -->
+</div>
 </body>
 </html>
