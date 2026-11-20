@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Widget Utilisateurs – Accès aux contrôles</title>
+<!-- Fichier à placer dans le dépôt GitHub, à côté de index.html -->
+<script src="./grist-plugin-api.js"></script>
+<style>
+  :root {
+    --bg: #fbf9ff;
+    --card: #ffffff;
+    --text: #3d3a4f;
+    --muted: #8b88a0;
+    --border: #e6e1f2;
+    --accent: #b9a7f0;
+    --accent-soft: #efeafd;
+    --c1: #dff3ea; --c1b: #a9dcc3;
+    --c2: #fde9d9; --c2b: #f5c6a0;
+    --c3: #dfeefb; --c3b: #a8cdee;
+    --c4: #fbe3ee; --c4b: #efb4cf;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  h1 { font-size: 1.05rem; margin: 0 0 12px; font-weight: 600; }
+  #message { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
+  #grille { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .carte {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 14px;
+    box-shadow: 0 2px 8px rgba(120, 100, 180, .06);
+  }
+  .carte.active { border-color: var(--accent); background: linear-gradient(180deg, var(--accent-soft), var(--card) 60%); }
+  .case { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+  .case input { width: 18px; height: 18px; accent-color: #9b84e8; cursor: pointer; }
+  .case input:disabled { cursor: not-allowed; }
+  .entrees { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .entree {
+    display: block; padding: 9px 12px; border-radius: 10px; border: 1px solid;
+    font-size: .85rem; line-height: 1.3; text-decoration: none; color: var(--text);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  a.entree:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  .entree small { display: block; color: var(--muted); margin-top: 2px; font-size: .72rem; }
+  .entree.e1 { background: var(--c1); border-color: var(--c1b); }
+  .entree.e2 { background: var(--c2); border-color: var(--c2b); }
+  .entree.e3 { background: var(--c3); border-color: var(--c3b); }
+  .entree.e4 { background: var(--c4); border-color: var(--c4b); }
+  .entree.inactif { opacity: .6; cursor: default; border-style: dashed; }
+</style>
+</head>
+<body>
+
+<h1>Accès aux contrôles par structure</h1>
+<div id="message">En attente d'une ligne de la table « Utilisateurs »…</div>
+<div id="grille"></div>
+
+<script>
+/* ================== CONFIGURATION ================== */
+
+// Colonnes booléennes de la table « Utilisateurs » (libellé affiché → identifiant de colonne Grist).
+// Si l'identifiant d'une colonne diffère (ex. « DSDEN_24 »), adapter le champ "col".
+const CASES = [
+  { label: "SAIO",     col: "SAIO" },
+  { label: "DRAAF",    col: "DRAAF" },
+  { label: "DSDEN 24", col: "DSDEN_24" },
+  { label: "DSDEN 33", col: "DSDEN_33" },
+  { label: "DSDEN 40", col: "DSDEN_40" },
+  { label: "DSDEN 47", col: "DSDEN_47" },
+  { label: "DSDEN 64", col: "DSDEN_64" }
+];
+
+// Entrées créées quand une case est cochée.
+// "url" : adresse de la page Grist contenant la table visée (à copier depuis la barre d'adresse,
+// ex. https://.../o/docs/XXXX/NomDuDoc/p/12). Laisser vide tant qu'elle n'est pas connue.
+const ENTREES = [
+  { classe: "e1", label: "Contrôle de la saisie des nomenclatures (février - avril)", table: null,               url: "" },
+  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",     table: "CONTROLES-1ERE",   url: "" },
+  { classe: "e3", label: "Contrôle de l'admission (juin)",                            table: "AFFECTATION-1ERE", url: "" },
+  { classe: "e4", label: "Saisie des places vacantes - Tours suivants (juillet - septembre)", table: null,       url: "" }
+];
+
+/* ================== LOGIQUE ================== */
+
+let enregistrement = null;   // ligne courante de la table « Utilisateurs »
+const grille  = document.getElementById("grille");
+const message = document.getElementById("message");
+
+grist.ready({ requiredAccess: "full" });
+
+grist.onRecord(function (rec) {
+  enregistrement = rec;
+  afficher();
+});
+
+function afficher() {
+  grille.innerHTML = "";
+  if (!enregistrement) {
+    message.style.display = "";
+    return;
+  }
+  message.style.display = "none";
+
+  CASES.forEach(function (c) {
+    const coche = !!enregistrement[c.col];
+
+    const carte = document.createElement("div");
+    carte.className = "carte" + (coche ? " active" : "");
+
+    const lbl = document.createElement("label");
+    lbl.className = "case";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = coche;
+    cb.addEventListener("change", function () { basculer(c, cb.checked); });
+    lbl.appendChild(cb);
+    lbl.appendChild(document.createTextNode(c.label));
+    carte.appendChild(lbl);
+
+    if (coche) {
+      const bloc = document.createElement("div");
+      bloc.className = "entrees";
+      ENTREES.forEach(function (e) { bloc.appendChild(creerEntree(e, c)); });
+      carte.appendChild(bloc);
+    }
+    grille.appendChild(carte);
+  });
+}
+
+function creerEntree(e, c) {
+  const ok = !!e.url;
+  const el = document.createElement(ok ? "a" : "div");
+  el.className = "entree " + e.classe + (ok ? "" : " inactif");
+  el.textContent = e.label;
+  if (ok) {
+    el.href = e.url;
+    el.target = "_blank";
+    el.rel = "noopener";
+  }
+  const info = document.createElement("small");
+  info.textContent = e.table ? "Table : " + e.table : "Table à préciser";
+  if (!ok) info.textContent += " · lien non configuré";
+  el.appendChild(info);
+  return el;
+}
+
+async function basculer(c, valeur) {
+  if (!enregistrement) return;
+  enregistrement[c.col] = valeur;      // mise à jour immédiate de l'affichage
+  afficher();
+  try {
+    await grist.selectedTable.update({ id: enregistrement.id, fields: { [c.col]: valeur } });
+  } catch (err) {
+    console.error("Échec de l'enregistrement :", err);
+    enregistrement[c.col] = !valeur;   // retour arrière en cas d'erreur
+    afficher();
+  }
+}
+</script>
+</body>
+</html>
