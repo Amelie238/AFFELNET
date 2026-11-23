@@ -94,6 +94,9 @@
   /* ---------- Sous-menu ---------- */
   #choixSous { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   #choixSous .entree { padding: 14px 16px; font-size: .92rem; }
+  .sg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 14px; background: var(--c3); border-top: 1px solid var(--c3b); border-bottom: 1px solid var(--c3b); font-size: .82rem; font-weight: 600; }
+  .sg .eonb { margin-left: auto; font-weight: 400; }
+  .bonus { display: inline-block; min-width: 28px; text-align: center; padding: 2px 8px; border-radius: 8px; background: var(--c5); border: 1px solid var(--c5b); font-weight: 600; }
   .nbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
   .nbs span { font-size: .76rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.75); border: 1px solid var(--border); color: var(--text); }
   .nbs .att { font-weight: 400; color: var(--muted); }
@@ -227,10 +230,10 @@ const SOUS_CHOIX = [
 ];
 
 // Choix proposés quand on clique sur « Contrôle de l'admission (juin) ».
-// Les tables ne sont pas encore précisées : à renseigner (tableId + vue) au fur et à mesure.
+// tableId null = table pas encore précisée : à renseigner (tableId + vue) au fur et à mesure.
 const SOUS_CHOIX_ADMISSION = [
-  { classe: "e1", label: "Montants non affectés en 1ère Pro",         tableId: null, vue: null },
-  { classe: "e2", label: "Montants non affectés en 1ère Techno",      tableId: null, vue: null },
+  { classe: "e1", label: "Montants non affectés en 1ère Pro",         tableId: "AFFECTATION_1ERE_PRO",     vue: "aff_pro" },
+  { classe: "e2", label: "Montants non affectés en 1ère Techno",      tableId: "AFFECTATION_1ERE_TECHNO",  vue: "aff_techno" },
   { classe: "e3", label: "Élèves du secteur non affectés en 2nde GT", tableId: null, vue: null },
   { classe: "e4", label: "Redoublants non affectés",                  tableId: null, vue: null },
   { classe: "e5", label: "2nde pro refusés sur tous leurs vœux",      tableId: null, vue: null },
@@ -297,10 +300,59 @@ const CHAMPS_2PRO_SANS_AVIS = [
   CHAMPS_CTRL[11]
 ];
 
+// Colonnes de la table AFFECTATION_1ERE_PRO.
+const CHAMPS_AFF_PRO = [
+  { cle: "etabAcc", nom: "Etablissement accueil", col: null, motifs: ["etablissement accueil", "etab accueil", "etablissement d accueil"], exclure: ["origine", "code", "uai", "telephone", "mel", "numero", "nat", "compare"] },
+  CHAMPS_CTRL[6],
+  { cle: "codeVoeu", nom: "Code vœu", col: null, motifs: ["code voeu"], exclure: [] },
+  CHAMPS_2PRO[3],
+  CHAMPS_CTRL[0],
+  CHAMPS_CTRL[4],
+  { cle: "bonusFiliere", nom: "Bonus filière OPA", col: null, motifs: ["bonus filiere opa", "bonus filiere"], exclure: [] },
+  { cle: "bonusRapp", nom: "Bonus rapprochement étab. OPA", col: null, motifs: ["bonus rapprochement etab opa", "bonus rapprochement"], exclure: [] },
+  { cle: "libAvis", nom: "Libellé avis chef étab. sur vœu", col: null, motifs: ["libelle avis chef etab sur voeu", "libelle avis chef etab", "libelle avis"], exclure: ["code"] },
+  CHAMPS_CTRL[11]
+];
+
+// Colonnes de la table AFFECTATION_1ERE_TECHNO.
+const CHAMPS_AFF_TECHNO = [
+  CHAMPS_AFF_PRO[0], CHAMPS_CTRL[0], CHAMPS_2PRO[3],
+  { cle: "mnemoVoeu", nom: "Mnémonique formation vœu", col: null, motifs: ["mnemonique formation voeu", "mnemonique voeu", "mnemonique formation"], exclure: [] },
+  { cle: "codeDecision", nom: "Code décision finale résultat élève par tour", col: null, motifs: ["code decision finale resultat eleve par tour", "code decision finale resultat", "code decision finale", "code decision"], exclure: [] },
+  CHAMPS_CTRL[11]
+];
+
 // Mise en forme des vues groupées par établissement d'origine.
 // colonnes : colonnes du tableau (groupe:true = affichée une seule fois pour les lignes consécutives d'un même élève).
 // filtre : clé du champ proposé en puces de filtre (null = pas de filtre).
+// Options facultatives : grouper (clé de regroupement, défaut etabOri), contact (téléphone/mél, défaut oui),
+// sousGroupe (sous-titres dans chaque carte), tri (clés de tri), cleEtab/libEtab (compteur d'établissements),
+// colonne.groupeSur (critère de fusion des cellules d'une colonne « groupe »).
 const VUES_CTRL = {
+  "aff_pro": {
+    champs: CHAMPS_AFF_PRO, filtre: null, triNum: null, tri: ["eleve"], grouper: "etabAcc", contact: false,
+    groupeVide: "Établissement d'accueil non renseigné", cleEtab: "etabAcc", libEtab: ["établissement d'accueil", "établissements d'accueil"],
+    sousGroupe: { titre: "formVoeu", code: "codeVoeu" }, grouperPar: ["eleve"], unite: "ligne(s)",
+    colonnes: [
+      { cle: "eleve",        titre: "Élève" },
+      { cle: "etabOri",      titre: "Établissement d'origine" },
+      { cle: "formEleve",    titre: "Formation élève" },
+      { cle: "bonusFiliere", titre: "Bonus filière OPA", rendu: "bonus" },
+      { cle: "bonusRapp",    titre: "Bonus rapprochement étab. OPA", rendu: "bonus" },
+      { cle: "libAvis",      titre: "Avis du chef d'établissement sur le vœu" }
+    ]
+  },
+  "aff_techno": {
+    champs: CHAMPS_AFF_TECHNO, filtre: null, triNum: null, tri: ["etabOri", "eleve"], grouper: "etabAcc", contact: false,
+    groupeVide: "Établissement d'accueil non renseigné", cleEtab: "etabAcc", libEtab: ["établissement d'accueil", "établissements d'accueil"],
+    grouperPar: ["etabOri", "eleve"], unite: "ligne(s)",
+    colonnes: [
+      { cle: "etabOri",      titre: "Établissement d'origine", groupe: true, groupeSur: ["etabOri"] },
+      { cle: "eleve",        titre: "Élève", groupe: true },
+      { cle: "mnemoVoeu",    titre: "Mnémonique formation vœu", rendu: "code" },
+      { cle: "codeDecision", titre: "Code décision finale (par tour)", rendu: "code" }
+    ]
+  },
   "1ere": {
     champs: CHAMPS_CTRL, filtre: "chg", filtreLib: "Changement", triNum: "rang", grouperPar: ["eleve", "formEleve"], unite: "vœu(x)",
     colonnes: [
@@ -345,7 +397,7 @@ const VUES_CTRL = {
 const $ = function (id) { return document.getElementById(id); };
 function norm(s) {
   return String(s === null || s === undefined ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    .toLowerCase().replace(/œ/g, "oe").replace(/[^a-z0-9]+/g, " ").trim();
 }
 function sansEspaces(s) { return norm(s).replace(/ /g, ""); }
 function h(tag, cls, txt) {
@@ -683,12 +735,21 @@ function dessinerOnglets(entree, choixActif, c) {
   nav.innerHTML = "";
   entree.sousmenu.forEach(function (ch, i) {
     const actif = !!(ch.tableId && ch.vue);
-    const b = h("button", "onglet t" + (i % 6) + (ch === choixActif ? " on" : "") + (actif ? "" : " inactif"), ch.label);
+    const b = h("button", "onglet t" + (parseInt(entree.classe.slice(1), 10) - 1) + (ch === choixActif ? " on" : "") + (actif ? "" : " inactif"), ch.label);
     b.type = "button";
+    appliquerTeinte(b, entree.classe, i, entree.sousmenu.length);
     if (!actif) b.title = "Table à préciser";
     else if (ch !== choixActif) b.addEventListener("click", function () { ouvrirControles(entree, ch, c); });
     nav.appendChild(b);
   });
+}
+
+// Teintes des sous-menus : dégradé de la couleur de l'entrée parente (e1 vert, e2 saumon, e3 bleu, e4 rose).
+function appliquerTeinte(el, classeParent, i, n) {
+  const k = classeParent.replace("e", "");
+  const p = n > 1 ? Math.round(5 + (i / (n - 1)) * 65) : 30;   // du plus clair au plus soutenu
+  el.style.background = "color-mix(in srgb, var(--c" + k + ") " + (100 - p) + "%, var(--c" + k + "b) " + p + "%)";
+  el.style.borderColor = "var(--c" + k + "b)";
 }
 
 let sousJeton = 0;
@@ -700,10 +761,11 @@ function ouvrirSousMenu(entree, c) {
   $("titreSous").textContent = entree.label + " — " + c.label;
   const bloc = $("choixSous");
   bloc.innerHTML = "";
-  entree.sousmenu.forEach(function (ch) {
+  entree.sousmenu.forEach(function (ch, i) {
     const actif = !!(ch.tableId && ch.vue);
-    const el = h("button", "entree " + ch.classe + (actif ? "" : " inactif"), ch.label);
+    const el = h("button", "entree " + entree.classe + (actif ? "" : " inactif"), ch.label);
     el.type = "button";
+    appliquerTeinte(el, entree.classe, i, entree.sousmenu.length);
     el.appendChild(h("small", null, ch.tableId ? "Table : " + ch.tableId : "Table à préciser"));
     if (actif) {
       el.addEventListener("click", function () {
@@ -720,7 +782,8 @@ function ouvrirSousMenu(entree, c) {
         if (!r.serviceTrouve) { nbs.appendChild(h("span", "att", "Colonne « Service » introuvable")); return; }
         if (!r.lignes.length) { nbs.appendChild(h("span", "att", "Non concerné")); el.classList.add("nc"); return; }
         nbs.appendChild(h("span", null, "👩‍🎓 " + pluriel(compterDistincts(r.lignes, "eleve"), "élève")));
-        nbs.appendChild(h("span", null, "🏫 " + pluriel(compterDistincts(r.lignes, "etabOri"), "établissement")));
+        const cf = VUES_CTRL[ch.vue], lib = cf.libEtab || ["établissement", "établissements"];
+        nbs.appendChild(h("span", null, "🏫 " + pluriel(compterDistincts(r.lignes, cf.cleEtab || "etabOri"), lib[0], lib[1])));
       }).catch(function () {
         if (jetonS !== sousJeton) return;
         nbs.innerHTML = "";
@@ -794,7 +857,7 @@ async function lireLignesCtrl(choix, c, ulDiag) {
 function compterDistincts(lignes, cle) {
   return new Set(lignes.map(function (l) { return l[cle]; }).filter(function (v) { return v; })).size;
 }
-function pluriel(n, mot) { return n + " " + mot + (n > 1 ? "s" : ""); }
+function pluriel(n, mot, plur) { return n + " " + (n > 1 ? (plur || mot + "s") : mot); }
 
 // Préchargement en arrière-plan des tables des sous-menus (les clics suivants sont alors quasi instantanés).
 function precharger() {
@@ -851,8 +914,50 @@ function remplirCellule(td, col, l) {
   if (!v) { td.textContent = "—"; return; }
   if (col.rendu === "rang") td.appendChild(h("span", "rang", v));
   else if (col.rendu === "code") td.appendChild(h("span", "code", v));
+  else if (col.rendu === "bonus") td.appendChild(h("span", "bonus", v));
   else if (col.rendu === "chg") td.appendChild(h("span", "chg " + (ctrlTeintes[v] || "t-tous"), libChg(v)));
   else td.textContent = v;
+}
+
+// Tableau des lignes d'un groupe. Les colonnes « groupe » sont fusionnées (rowspan) sur les lignes consécutives
+// ayant les mêmes valeurs (groupeSur de la colonne, sinon grouperPar de la vue).
+function construireTable(lignes, cfg) {
+  const nb = lignes.length;
+  const defil = h("div", "ctab-defil");
+  const t = h("table", "ctab");
+  const hr = t.createTHead().insertRow();
+  cfg.colonnes.forEach(function (col) { hr.appendChild(h("th", null, col.titre)); });
+  const tb = t.createTBody();
+
+  const spans = {};
+  cfg.colonnes.forEach(function (col, ci) {
+    if (!col.groupe) return;
+    const cles = col.groupeSur || cfg.grouperPar;
+    const arr = new Array(nb).fill(0);
+    let i = 0;
+    while (i < nb) {
+      let j = i + 1;
+      while (j < nb && cles.every(function (k) { return lignes[j][k] === lignes[i][k]; })) j++;
+      arr[i] = j - i;
+      i = j;
+    }
+    spans[ci] = arr;
+  });
+
+  lignes.forEach(function (l, k) {
+    const tr = tb.insertRow();
+    const debut = k === 0 || !cfg.grouperPar.every(function (c) { return lignes[k][c] === lignes[k - 1][c]; });
+    if (debut) tr.className = "debut";
+    cfg.colonnes.forEach(function (col, ci) {
+      if (col.groupe && !spans[ci][k]) return;
+      const td = tr.insertCell();
+      if (col.groupe) td.rowSpan = spans[ci][k];
+      if (col.cle === "eleve") td.className = "eleve";
+      remplirCellule(td, col, l);
+    });
+  });
+  defil.appendChild(t);
+  return defil;
 }
 
 function dessinerCtrl() {
@@ -886,13 +991,14 @@ function dessinerCtrl() {
 
   const vus = ctrlLignes.filter(function (l) {
     if (cleF && ctrlFiltres.size && !ctrlFiltres.has(l[cleF] || "")) return false;
-    return !q || norm([l.etabOri].concat(cfg.colonnes.map(function (col) { return l[col.cle]; })).join(" ")).indexOf(q) !== -1;
+    return !q || norm([l[cfg.grouper || "etabOri"]].concat(cfg.colonnes.map(function (col) { return l[col.cle]; })).join(" ")).indexOf(q) !== -1;
   });
 
-  // Regroupement par établissement d'origine
+  // Regroupement (par établissement d'origine ou d'accueil selon la vue)
+  const cleG = cfg.grouper || "etabOri";
   const groupes = {};
   vus.forEach(function (l) {
-    const e = l.etabOri || "Établissement d'origine non renseigné";
+    const e = l[cleG] || cfg.groupeVide || "Établissement d'origine non renseigné";
     (groupes[e] = groupes[e] || []).push(l);
   });
 
@@ -901,58 +1007,57 @@ function dessinerCtrl() {
   const noms = Object.keys(groupes).sort(function (a, b) { return a.localeCompare(b, "fr"); });
   if (!noms.length) liste.appendChild(h("div", "vide", "Aucune ligne à afficher pour cette structure."));
 
+  const cleTri = cfg.tri || ["eleve"];
   noms.forEach(function (nom) {
     const lignesE = groupes[nom].slice().sort(function (a, b) {
-      return a.eleve.localeCompare(b.eleve, "fr") ||
-        (cfg.triNum ? (parseFloat(a[cfg.triNum]) || 0) - (parseFloat(b[cfg.triNum]) || 0) : 0);
+      for (let k = 0; k < cleTri.length; k++) {
+        const d = (a[cleTri[k]] || "").localeCompare(b[cleTri[k]] || "", "fr");
+        if (d) return d;
+      }
+      return cfg.triNum ? (parseFloat(a[cfg.triNum]) || 0) - (parseFloat(b[cfg.triNum]) || 0) : 0;
     });
     const premier = function (cle) { const f = lignesE.find(function (l) { return l[cle]; }); return f ? f[cle] : ""; };
-    const nbEleves = new Set(lignesE.map(function (l) { return l.eleve; })).size;
 
     const det = h("details", "etabo");
     det.open = true;
     const sum = h("summary");
     sum.appendChild(h("span", "eonom", "🏫 " + nom));
-    const contact = h("span", "eocontact");
-    const tel = premier("tel"), mel = premier("mel");
-    if (tel) { const a = h("a", null, "📞 " + tel); a.href = "tel:" + tel.replace(/\s+/g, ""); a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
-    else contact.appendChild(h("span", "absent", "📞 non renseigné"));
-    if (mel) { const a = h("a", null, "✉ " + mel); a.href = "mailto:" + mel; a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
-    else contact.appendChild(h("span", "absent", "✉ non renseigné"));
-    sum.appendChild(contact);
-    sum.appendChild(h("span", "eonb", nbEleves + " élève(s) · " + lignesE.length + " " + cfg.unite));
+    if (cfg.contact !== false) {
+      const contact = h("span", "eocontact");
+      const tel = premier("tel"), mel = premier("mel");
+      if (tel) { const a = h("a", null, "📞 " + tel); a.href = "tel:" + tel.replace(/\s+/g, ""); a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
+      else contact.appendChild(h("span", "absent", "📞 non renseigné"));
+      if (mel) { const a = h("a", null, "✉ " + mel); a.href = "mailto:" + mel; a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
+      else contact.appendChild(h("span", "absent", "✉ non renseigné"));
+      sum.appendChild(contact);
+    }
+    sum.appendChild(h("span", "eonb", compterDistincts(lignesE, "eleve") + " élève(s) · " + lignesE.length + " " + cfg.unite));
     det.appendChild(sum);
 
-    const defil = h("div", "ctab-defil");
-    const t = h("table", "ctab");
-    const hr = t.createTHead().insertRow();
-    cfg.colonnes.forEach(function (col) { hr.appendChild(h("th", null, col.titre)); });
-    const tb = t.createTBody();
-    let i = 0;
-    while (i < lignesE.length) {
-      // lignes consécutives d'un même élève : colonnes « groupe » affichées une seule fois
-      let j = i + 1;
-      while (j < lignesE.length && cfg.grouperPar.every(function (k) { return lignesE[j][k] === lignesE[i][k]; })) j++;
-      for (let k = i; k < j; k++) {
-        const l = lignesE[k];
-        const tr = tb.insertRow();
-        if (k === i) tr.className = "debut";
-        cfg.colonnes.forEach(function (col) {
-          if (col.groupe) {
-            if (k !== i) return;
-            const td = tr.insertCell();
-            td.rowSpan = j - i;
-            if (col.cle === "eleve") td.className = "eleve";
-            remplirCellule(td, col, l);
-          } else {
-            remplirCellule(tr.insertCell(), col, l);
-          }
-        });
-      }
-      i = j;
+    if (cfg.sousGroupe) {
+      // Un tableau par formation d'accueil (libellé + code)
+      const sg = cfg.sousGroupe, parSg = {}, ordre = [];
+      lignesE.forEach(function (l) {
+        const k = (l[sg.titre] || "") + "\u0001" + (l[sg.code] || "");
+        if (!parSg[k]) { parSg[k] = []; ordre.push(k); }
+        parSg[k].push(l);
+      });
+      ordre.sort(function (a, b) {
+        return (parSg[a][0][sg.titre] || "").localeCompare(parSg[b][0][sg.titre] || "", "fr") ||
+          (parSg[a][0][sg.code] || "").localeCompare(parSg[b][0][sg.code] || "", "fr");
+      });
+      ordre.forEach(function (k) {
+        const sub = parSg[k], f = sub[0];
+        const ent = h("div", "sg");
+        ent.appendChild(h("span", null, "🎓 " + (f[sg.titre] || "Formation non renseignée")));
+        if (f[sg.code]) ent.appendChild(h("span", "code", f[sg.code]));
+        ent.appendChild(h("span", "eonb", compterDistincts(sub, "eleve") + " élève(s)"));
+        det.appendChild(ent);
+        det.appendChild(construireTable(sub, cfg));
+      });
+    } else {
+      det.appendChild(construireTable(lignesE, cfg));
     }
-    defil.appendChild(t);
-    det.appendChild(defil);
     liste.appendChild(det);
   });
   $("compteurCtrl").textContent = vus.length + " / " + ctrlLignes.length + " ligne(s)";
