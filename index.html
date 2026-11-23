@@ -88,6 +88,10 @@
   details.diag ul { margin: 6px 0 0; padding-left: 18px; }
   @media (max-width: 640px) { .cand { grid-template-columns: 1fr; } }
 
+  /* ---------- Sous-menu ---------- */
+  #choixSous { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  #choixSous .entree { padding: 14px 16px; font-size: .92rem; }
+
   /* ---------- Vue Contrôle de la saisie des candidatures ---------- */
   .filtreChg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
   .filtreLib { font-size: .8rem; color: var(--muted); font-weight: 600; margin-right: 2px; }
@@ -158,7 +162,16 @@
   <details class="diag"><summary>Colonnes utilisées</summary><ul id="diag"></ul></details>
 </div>
 
-<!-- Vue Contrôle de la saisie des candidatures -->
+<!-- Sous-menu de « Contrôle de la saisie des candidatures » -->
+<div id="vueSous" class="cache">
+  <div class="barre">
+    <button class="retour" id="retourSous">← Retour</button>
+    <h2 id="titreSous"></h2>
+  </div>
+  <div id="choixSous"></div>
+</div>
+
+<!-- Vues groupées par établissement d'origine -->
 <div id="vueCtrl" class="cache">
   <div class="barre">
     <button class="retour" id="retourCtrl">← Retour</button>
@@ -167,7 +180,7 @@
     <span id="compteurCtrl"></span>
   </div>
   <div id="alerteCtrl"></div>
-  <div class="filtreChg"><span class="filtreLib">Changement :</span><span id="chipsChg"></span></div>
+  <div class="filtreChg" id="filtreBloc"><span class="filtreLib" id="filtreLib">Changement :</span><span id="chipsChg"></span></div>
   <div id="listeCtrl"></div>
   <details class="diag"><summary>Colonnes utilisées</summary><ul id="diagCtrl"></ul></details>
 </div>
@@ -188,11 +201,20 @@ const CASES = [
 ];
 
 // Entrées affichées dans chaque carte.
-// rendu : "affectation" et "controles" = vues mises en forme (filtrées selon le service en charge) ; "tableau" = tableau simple.
+// rendu : "affectation" = vue mise en forme (filtrée selon le service en charge) ; "sousmenu" = page de choix (voir SOUS_CHOIX) ; "tableau" = tableau simple.
 // tableId : identifiant Grist de la table (sans tiret). null = table pas encore précisée.
+// Choix proposés quand on clique sur « Contrôle de la saisie des candidatures (avril - juin) ».
+// vue : clé de VUES_CTRL (mise en forme). tableId null = table pas encore précisée.
+const SOUS_CHOIX = [
+  { classe: "e1", label: "2nde pro sans saisie",          tableId: "CONTROLES_2PRO_SANS_SAISIE", vue: "2pro" },
+  { classe: "e2", label: "2nde pro sans avis CE",         tableId: null,                         vue: null },
+  { classe: "e3", label: "Erreurs saisies 1ère",          tableId: "CONTROLES_1ERE",             vue: "1ere" },
+  { classe: "e4", label: "Motifs de dérog saisis à tort", tableId: null,                         vue: null }
+];
+
 const ENTREES = [
   { classe: "e1", label: "Contrôle de la saisie des nomenclatures (février - avril)",         tableId: null,               rendu: "tableau" },
-  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",             tableId: "CONTROLES_1ERE",   rendu: "controles" },
+  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",             tableId: null,               rendu: "sousmenu", sousmenu: SOUS_CHOIX },
   { classe: "e3", label: "Contrôle de l'admission (juin)",                                    tableId: "AFFECTATION_1ERE", rendu: "affectation" },
   { classe: "e4", label: "Saisie des places vacantes - Tours suivants (juillet - septembre)", tableId: null,               rendu: "tableau" }
 ];
@@ -227,6 +249,46 @@ const CHAMPS_CTRL = [
   { cle: "chg",       nom: "Changement",                col: null, motifs: ["changement"], exclure: [] },
   { cle: "service",   nom: "Service en charge du traitement", col: null, motifs: ["service en charge du traitement", "service en charge", "service"], exclure: [] }
 ];
+
+// Colonnes de la table CONTROLES_2PRO_SANS_SAISIE.
+const CHAMPS_2PRO = [
+  CHAMPS_CTRL[0], CHAMPS_CTRL[1], CHAMPS_CTRL[2],
+  { cle: "eleve",      nom: "Élève",         col: null, motifs: ["eleve"], exclure: ["formation", "libelle", "etab", "telephone", "mel", "numero", "nat", "classe"] },
+  { cle: "classe",     nom: "Classe",        col: null, motifs: ["classe"], exclure: [] },
+  { cle: "mnemo",      nom: "Mnémonique",    col: null, motifs: ["mnemonique", "mnemo"], exclure: [] },
+  { cle: "specialite", nom: "Spécialité",    col: null, motifs: ["specialite"], exclure: [] },
+  { cle: "formation",  nom: "Libellé formation", col: null, motifs: ["libelle formation", "formation"], exclure: [] },
+  CHAMPS_CTRL[11]
+];
+
+// Mise en forme des vues groupées par établissement d'origine.
+// colonnes : colonnes du tableau (groupe:true = affichée une seule fois pour les lignes consécutives d'un même élève).
+// filtre : clé du champ proposé en puces de filtre (null = pas de filtre).
+const VUES_CTRL = {
+  "1ere": {
+    champs: CHAMPS_CTRL, filtre: "chg", filtreLib: "Changement", triNum: "rang", grouperPar: ["eleve", "formEleve"], unite: "vœu(x)",
+    colonnes: [
+      { cle: "eleve",     titre: "Élève", groupe: true },
+      { cle: "formEleve", titre: "Formation élève", groupe: true },
+      { cle: "rang",      titre: "Rang", rendu: "rang" },
+      { cle: "formVoeu",  titre: "Formation vœu" },
+      { cle: "etabAcc",   titre: "Établissement d'accueil" },
+      { cle: "codeAvis",  titre: "Code avis", rendu: "code" },
+      { cle: "libAvis",   titre: "Avis du chef d'établissement" },
+      { cle: "chg",       titre: "Changement", rendu: "chg" }
+    ]
+  },
+  "2pro": {
+    champs: CHAMPS_2PRO, filtre: null, triNum: null, grouperPar: ["eleve", "classe"], unite: "ligne(s)",
+    colonnes: [
+      { cle: "eleve",      titre: "Élève", groupe: true },
+      { cle: "classe",     titre: "Classe", groupe: true },
+      { cle: "mnemo",      titre: "Mnémonique", rendu: "code" },
+      { cle: "specialite", titre: "Spécialité" },
+      { cle: "formation",  titre: "Libellé formation" }
+    ]
+  }
+};
 
 /* ================== OUTILS ================== */
 
@@ -277,28 +339,32 @@ function afficher() {
 }
 
 function creerEntree(e, c) {
-  const el = h("button", "entree " + e.classe + (e.tableId ? "" : " inactif"), e.label);
+  const actif = !!(e.tableId || e.sousmenu);
+  const el = h("button", "entree " + e.classe + (actif ? "" : " inactif"), e.label);
   el.type = "button";
-  el.appendChild(h("small", null, e.tableId ? "Table : " + e.tableId : "Table à préciser"));
-  if (e.tableId) el.addEventListener("click", function () {
-    if (e.rendu === "affectation") ouvrirAffectation(e, c);
-    else if (e.rendu === "controles") ouvrirControles(e, c);
+  el.appendChild(h("small", null, e.sousmenu ? e.sousmenu.length + " choix" : (e.tableId ? "Table : " + e.tableId : "Table à préciser")));
+  if (actif) el.addEventListener("click", function () {
+    if (e.sousmenu) ouvrirSousMenu(e, c);
+    else if (e.rendu === "affectation") ouvrirAffectation(e, c);
     else ouvrirTable(e, c);
   });
   return el;
 }
 
+// Affiche une seule des vues de la page.
+function montrer(id) {
+  ["accueil", "vueTable", "vueAff", "vueCtrl", "vueSous"].forEach(function (v) { $(v).classList.toggle("cache", v !== id); });
+}
+
 function retourAccueil() {
   vueOuverte = false;
-  $("vueTable").classList.add("cache");
-  $("vueAff").classList.add("cache");
-  $("vueCtrl").classList.add("cache");
-  $("accueil").classList.remove("cache");
+  montrer("accueil");
   afficher();
 }
 $("retour").addEventListener("click", retourAccueil);
 $("retourAff").addEventListener("click", retourAccueil);
-$("retourCtrl").addEventListener("click", retourAccueil);
+$("retourSous").addEventListener("click", retourAccueil);
+$("retourCtrl").addEventListener("click", function () { retourCtrlFn(); });
 
 /* ================== VUE TABLEAU GÉNÉRIQUE ================== */
 
@@ -538,11 +604,32 @@ function dessinerAff() {
 }
 $("rechercheAff").addEventListener("input", dessinerAff);
 
-/* ================== VUE CONTRÔLE DES CANDIDATURES ================== */
+/* ================== SOUS-MENU ET VUES GROUPÉES PAR ÉTABLISSEMENT D'ORIGINE ================== */
 
 let ctrlLignes = [];            // lignes déjà filtrées sur le service en charge
-let ctrlFiltres = new Set();    // valeurs de « Changement » sélectionnées (vide = toutes)
-let ctrlTeintes = {};           // valeur de « Changement » → classe pastel
+let ctrlFiltres = new Set();    // valeurs du filtre sélectionnées (vide = toutes)
+let ctrlTeintes = {};           // valeur du filtre → classe pastel
+let ctrlCfg = null;             // mise en forme en cours (VUES_CTRL)
+let retourCtrlFn = retourAccueil;
+
+function ouvrirSousMenu(entree, c) {
+  vueOuverte = true;
+  montrer("vueSous");
+  $("titreSous").textContent = entree.label + " — " + c.label;
+  const bloc = $("choixSous");
+  bloc.innerHTML = "";
+  entree.sousmenu.forEach(function (ch) {
+    const actif = !!(ch.tableId && ch.vue);
+    const el = h("button", "entree " + ch.classe + (actif ? "" : " inactif"), ch.label);
+    el.type = "button";
+    el.appendChild(h("small", null, ch.tableId ? "Table : " + ch.tableId : "Table à préciser"));
+    if (actif) el.addEventListener("click", function () {
+      retourCtrlFn = function () { ouvrirSousMenu(entree, c); };
+      ouvrirControles(entree, ch, c);
+    });
+    bloc.appendChild(el);
+  });
+}
 
 // Lit une table et détecte ses colonnes ; renvoie data, cols et la fonction valeur(cle, i).
 async function chargerColonnes(tableId, champs, ulDiag) {
@@ -580,73 +667,90 @@ async function chargerColonnes(tableId, champs, ulDiag) {
   return { data: data, cols: cols, valeur: valeur };
 }
 
-async function ouvrirControles(entree, c) {
+async function ouvrirControles(entree, choix, c) {
   vueOuverte = true;
-  $("accueil").classList.add("cache");
-  $("vueCtrl").classList.remove("cache");
-  $("titreCtrl").textContent = entree.label + " — " + c.label;
+  ctrlCfg = VUES_CTRL[choix.vue];
+  montrer("vueCtrl");
+  $("titreCtrl").textContent = choix.label + " — " + c.label;
   $("rechercheCtrl").value = "";
   $("compteurCtrl").textContent = "Chargement…";
   $("listeCtrl").innerHTML = "";
   $("chipsChg").innerHTML = "";
   $("alerteCtrl").innerHTML = "";
   $("diagCtrl").innerHTML = "";
+  $("filtreLib").textContent = (ctrlCfg.filtreLib || "") + " :";
   ctrlFiltres = new Set();
   ctrlLignes = [];
 
   try {
-    const r = await chargerColonnes(entree.tableId, CHAMPS_CTRL, $("diagCtrl"));
+    const r = await chargerColonnes(choix.tableId, ctrlCfg.champs, $("diagCtrl"));
     if (!r.cols.service) {
-      $("alerteCtrl").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucune ligne n'est affichée afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_CTRL (champ « col »)."));
+      $("alerteCtrl").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucune ligne n'est affichée afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_CTRL / CHAMPS_2PRO (champ « col »)."));
     } else {
       const attendues = c.valeurs.map(sansEspaces);
       (r.data.id || []).forEach(function (_, i) {
         if (attendues.indexOf(sansEspaces(r.valeur("service", i))) === -1) return;
         const l = {};
-        CHAMPS_CTRL.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
+        ctrlCfg.champs.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
         ctrlLignes.push(l);
       });
     }
-    // Une teinte pastel par valeur de « Changement » (même ordre partout)
+    // Une teinte pastel par valeur du filtre (même ordre partout)
     ctrlTeintes = {};
-    Array.from(new Set(ctrlLignes.map(function (l) { return l.chg || ""; }))).sort(function (a, b) { return a.localeCompare(b, "fr"); })
-      .forEach(function (v, i) { ctrlTeintes[v] = "t" + (i % 6); });
+    if (ctrlCfg.filtre) {
+      Array.from(new Set(ctrlLignes.map(function (l) { return l[ctrlCfg.filtre] || ""; }))).sort(function (a, b) { return a.localeCompare(b, "fr"); })
+        .forEach(function (v, i) { ctrlTeintes[v] = "t" + (i % 6); });
+    }
     dessinerCtrl();
   } catch (err) {
     console.error(err);
-    $("compteurCtrl").textContent = "Impossible de lire la table « " + entree.tableId + " » (identifiant correct ? même document ?).";
+    $("compteurCtrl").textContent = "Impossible de lire la table « " + choix.tableId + " » (identifiant correct ? même document ?).";
   }
 }
 
 function libChg(v) { return v || "Non renseigné"; }
 
+function remplirCellule(td, col, l) {
+  const v = l[col.cle];
+  if (!v) { td.textContent = "—"; return; }
+  if (col.rendu === "rang") td.appendChild(h("span", "rang", v));
+  else if (col.rendu === "code") td.appendChild(h("span", "code", v));
+  else if (col.rendu === "chg") td.appendChild(h("span", "chg " + (ctrlTeintes[v] || "t-tous"), libChg(v)));
+  else td.textContent = v;
+}
+
 function dessinerCtrl() {
+  const cfg = ctrlCfg;
+  const cleF = cfg.filtre;
   const q = norm($("rechercheCtrl").value);
 
-  // Filtre « Changement » (puces cliquables, sélection multiple ; aucune sélection = tout)
-  const nbParChg = {};
-  ctrlLignes.forEach(function (l) { const v = l.chg || ""; nbParChg[v] = (nbParChg[v] || 0) + 1; });
+  // Filtre (puces cliquables, sélection multiple ; aucune sélection = tout)
+  $("filtreBloc").classList.toggle("cache", !cleF);
   const chips = $("chipsChg");
   chips.innerHTML = "";
-  const tous = h("button", "chip t-tous" + (ctrlFiltres.size === 0 ? " on" : ""), "Tous");
-  tous.type = "button";
-  tous.appendChild(h("b", null, ctrlLignes.length));
-  tous.addEventListener("click", function () { ctrlFiltres.clear(); dessinerCtrl(); });
-  chips.appendChild(tous);
-  Object.keys(nbParChg).sort(function (a, b) { return a.localeCompare(b, "fr"); }).forEach(function (v) {
-    const b = h("button", "chip " + ctrlTeintes[v] + (ctrlFiltres.has(v) ? " on" : ""), libChg(v));
-    b.type = "button";
-    b.appendChild(h("b", null, nbParChg[v]));
-    b.addEventListener("click", function () {
-      if (ctrlFiltres.has(v)) ctrlFiltres.delete(v); else ctrlFiltres.add(v);
-      dessinerCtrl();
+  if (cleF) {
+    const nbPar = {};
+    ctrlLignes.forEach(function (l) { const v = l[cleF] || ""; nbPar[v] = (nbPar[v] || 0) + 1; });
+    const tous = h("button", "chip t-tous" + (ctrlFiltres.size === 0 ? " on" : ""), "Tous");
+    tous.type = "button";
+    tous.appendChild(h("b", null, ctrlLignes.length));
+    tous.addEventListener("click", function () { ctrlFiltres.clear(); dessinerCtrl(); });
+    chips.appendChild(tous);
+    Object.keys(nbPar).sort(function (a, b) { return a.localeCompare(b, "fr"); }).forEach(function (v) {
+      const b = h("button", "chip " + ctrlTeintes[v] + (ctrlFiltres.has(v) ? " on" : ""), libChg(v));
+      b.type = "button";
+      b.appendChild(h("b", null, nbPar[v]));
+      b.addEventListener("click", function () {
+        if (ctrlFiltres.has(v)) ctrlFiltres.delete(v); else ctrlFiltres.add(v);
+        dessinerCtrl();
+      });
+      chips.appendChild(b);
     });
-    chips.appendChild(b);
-  });
+  }
 
   const vus = ctrlLignes.filter(function (l) {
-    if (ctrlFiltres.size && !ctrlFiltres.has(l.chg || "")) return false;
-    return !q || norm([l.etabOri, l.eleve, l.formEleve, l.formVoeu, l.etabAcc, l.libAvis, l.chg].join(" ")).indexOf(q) !== -1;
+    if (cleF && ctrlFiltres.size && !ctrlFiltres.has(l[cleF] || "")) return false;
+    return !q || norm([l.etabOri].concat(cfg.colonnes.map(function (col) { return l[col.cle]; })).join(" ")).indexOf(q) !== -1;
   });
 
   // Regroupement par établissement d'origine
@@ -663,7 +767,8 @@ function dessinerCtrl() {
 
   noms.forEach(function (nom) {
     const lignesE = groupes[nom].slice().sort(function (a, b) {
-      return a.eleve.localeCompare(b.eleve, "fr") || (parseFloat(a.rang) || 0) - (parseFloat(b.rang) || 0);
+      return a.eleve.localeCompare(b.eleve, "fr") ||
+        (cfg.triNum ? (parseFloat(a[cfg.triNum]) || 0) - (parseFloat(b[cfg.triNum]) || 0) : 0);
     });
     const premier = function (cle) { const f = lignesE.find(function (l) { return l[cle]; }); return f ? f[cle] : ""; };
     const nbEleves = new Set(lignesE.map(function (l) { return l.eleve; })).size;
@@ -679,34 +784,34 @@ function dessinerCtrl() {
     if (mel) { const a = h("a", null, "✉ " + mel); a.href = "mailto:" + mel; a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
     else contact.appendChild(h("span", "absent", "✉ non renseigné"));
     sum.appendChild(contact);
-    sum.appendChild(h("span", "eonb", nbEleves + " élève(s) · " + lignesE.length + " vœu(x)"));
+    sum.appendChild(h("span", "eonb", nbEleves + " élève(s) · " + lignesE.length + " " + cfg.unite));
     det.appendChild(sum);
 
     const defil = h("div", "ctab-defil");
     const t = h("table", "ctab");
     const hr = t.createTHead().insertRow();
-    ["Élève", "Formation élève", "Rang", "Formation vœu", "Établissement d'accueil", "Code avis", "Avis du chef d'établissement", "Changement"]
-      .forEach(function (x) { hr.appendChild(h("th", null, x)); });
+    cfg.colonnes.forEach(function (col) { hr.appendChild(h("th", null, col.titre)); });
     const tb = t.createTBody();
     let i = 0;
     while (i < lignesE.length) {
-      // lignes consécutives d'un même élève : nom et formation affichés une seule fois
+      // lignes consécutives d'un même élève : colonnes « groupe » affichées une seule fois
       let j = i + 1;
-      while (j < lignesE.length && lignesE[j].eleve === lignesE[i].eleve && lignesE[j].formEleve === lignesE[i].formEleve) j++;
+      while (j < lignesE.length && cfg.grouperPar.every(function (k) { return lignesE[j][k] === lignesE[i][k]; })) j++;
       for (let k = i; k < j; k++) {
         const l = lignesE[k];
         const tr = tb.insertRow();
         if (k === i) tr.className = "debut";
-        if (k === i) {
-          const a = tr.insertCell(); a.className = "eleve"; a.rowSpan = j - i; a.textContent = l.eleve || "—";
-          const b = tr.insertCell(); b.rowSpan = j - i; b.textContent = l.formEleve || "—";
-        }
-        const cr = tr.insertCell(); if (l.rang) cr.appendChild(h("span", "rang", l.rang)); else cr.textContent = "—";
-        tr.insertCell().textContent = l.formVoeu || "—";
-        tr.insertCell().textContent = l.etabAcc || "—";
-        const cc = tr.insertCell(); if (l.codeAvis) cc.appendChild(h("span", "code", l.codeAvis)); else cc.textContent = "—";
-        tr.insertCell().textContent = l.libAvis || "—";
-        const cg = tr.insertCell(); cg.appendChild(h("span", "chg " + (ctrlTeintes[l.chg || ""] || "t-tous"), libChg(l.chg)));
+        cfg.colonnes.forEach(function (col) {
+          if (col.groupe) {
+            if (k !== i) return;
+            const td = tr.insertCell();
+            td.rowSpan = j - i;
+            if (col.cle === "eleve") td.className = "eleve";
+            remplirCellule(td, col, l);
+          } else {
+            remplirCellule(tr.insertCell(), col, l);
+          }
+        });
       }
       i = j;
     }
