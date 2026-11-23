@@ -92,6 +92,17 @@
   #choixSous { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   #choixSous .entree { padding: 14px 16px; font-size: .92rem; }
 
+  /* ---------- Onglets et compteurs des vues ---------- */
+  .onglets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .onglet { font: inherit; font-size: .82rem; padding: 7px 14px; border-radius: 999px; border: 1px solid; cursor: pointer; color: var(--text); transition: transform .08s ease, box-shadow .08s ease; }
+  .onglet:hover:not(.inactif) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  .onglet.on { font-weight: 700; box-shadow: 0 0 0 2px var(--accent); }
+  .onglet.inactif { opacity: .5; cursor: not-allowed; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .stat { padding: 8px 16px; border-radius: 12px; border: 1px solid; font-size: .85rem; }
+  .stat b { font-size: 1.2rem; margin-right: 6px; }
+  .stat small { color: var(--muted); margin-left: 6px; }
+
   /* ---------- Vue Contrôle de la saisie des candidatures ---------- */
   .filtreChg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
   .filtreLib { font-size: .8rem; color: var(--muted); font-weight: 600; margin-right: 2px; }
@@ -179,6 +190,8 @@
     <input id="rechercheCtrl" type="search" placeholder="Rechercher un élève, un établissement…">
     <span id="compteurCtrl"></span>
   </div>
+  <div class="onglets" id="ongletsCtrl"></div>
+  <div class="stats" id="statsCtrl"></div>
   <div id="alerteCtrl"></div>
   <div class="filtreChg" id="filtreBloc"><span class="filtreLib" id="filtreLib">Changement :</span><span id="chipsChg"></span></div>
   <div id="listeCtrl"></div>
@@ -207,7 +220,7 @@ const CASES = [
 // vue : clé de VUES_CTRL (mise en forme). tableId null = table pas encore précisée.
 const SOUS_CHOIX = [
   { classe: "e1", label: "2nde pro sans saisie",          tableId: "CONTROLES_2PRO_SANS_SAISIE", vue: "2pro" },
-  { classe: "e2", label: "2nde pro sans avis CE",         tableId: null,                         vue: null },
+  { classe: "e2", label: "2nde pro sans avis CE",         tableId: "CONTROLES_2PRO_SANS_AVIS",   vue: "2pro_sans_avis" },
   { classe: "e3", label: "Erreurs saisies 1ère",          tableId: "CONTROLES_1ERE",             vue: "1ere" },
   { classe: "e4", label: "Motifs de dérog saisis à tort", tableId: null,                         vue: null }
 ];
@@ -261,6 +274,17 @@ const CHAMPS_2PRO = [
   CHAMPS_CTRL[11]
 ];
 
+// Colonnes de la table CONTROLES_2PRO_SANS_AVIS.
+const CHAMPS_2PRO_SANS_AVIS = [
+  CHAMPS_CTRL[0], CHAMPS_CTRL[1], CHAMPS_CTRL[2],
+  CHAMPS_2PRO[3], CHAMPS_2PRO[5], CHAMPS_2PRO[6],
+  CHAMPS_CTRL[4], CHAMPS_CTRL[5], CHAMPS_CTRL[6],
+  { cle: "etabAcc",  nom: "Etab accueil",  col: null, motifs: ["etab accueil", "etablissement d accueil", "etablissement accueil", "etab voeu", "etablissement voeu"], exclure: ["origine", "code", "uai", "telephone", "mel", "numero", "nat", "compare"] },
+  { cle: "compare",  nom: "Compare étab",  col: null, motifs: ["compare etab", "comparaison etab", "compare"], exclure: [] },
+  { cle: "libAvis",  nom: "Libellé avis chef étab", col: null, motifs: ["libelle avis chef etab", "lib avis chef etab", "libelle avis ce", "lib avis ce", "libelle avis", "avis chef etab"], exclure: ["code"] },
+  CHAMPS_CTRL[11]
+];
+
 // Mise en forme des vues groupées par établissement d'origine.
 // colonnes : colonnes du tableau (groupe:true = affichée une seule fois pour les lignes consécutives d'un même élève).
 // filtre : clé du champ proposé en puces de filtre (null = pas de filtre).
@@ -276,6 +300,20 @@ const VUES_CTRL = {
       { cle: "codeAvis",  titre: "Code avis", rendu: "code" },
       { cle: "libAvis",   titre: "Avis du chef d'établissement" },
       { cle: "chg",       titre: "Changement", rendu: "chg" }
+    ]
+  },
+  "2pro_sans_avis": {
+    champs: CHAMPS_2PRO_SANS_AVIS, filtre: null, triNum: "rang", grouperPar: ["eleve", "mnemo", "specialite", "formEleve"], unite: "vœu(x)",
+    colonnes: [
+      { cle: "eleve",      titre: "Élève", groupe: true },
+      { cle: "mnemo",      titre: "Mnémonique", groupe: true, rendu: "code" },
+      { cle: "specialite", titre: "Spécialité", groupe: true },
+      { cle: "formEleve",  titre: "Formation élève", groupe: true },
+      { cle: "rang",       titre: "Rang", rendu: "rang" },
+      { cle: "formVoeu",   titre: "Formation vœu" },
+      { cle: "etabAcc",    titre: "Établissement d'accueil" },
+      { cle: "compare",    titre: "Compare étab" },
+      { cle: "libAvis",    titre: "Avis du chef d'établissement" }
     ]
   },
   "2pro": {
@@ -611,6 +649,21 @@ let ctrlFiltres = new Set();    // valeurs du filtre sélectionnées (vide = tou
 let ctrlTeintes = {};           // valeur du filtre → classe pastel
 let ctrlCfg = null;             // mise en forme en cours (VUES_CTRL)
 let retourCtrlFn = retourAccueil;
+let ctrlJeton = 0;              // évite qu'un chargement lent écrase un chargement plus récent
+
+// Onglets pour passer directement d'un sous-menu à un autre
+function dessinerOnglets(entree, choixActif, c) {
+  const nav = $("ongletsCtrl");
+  nav.innerHTML = "";
+  entree.sousmenu.forEach(function (ch, i) {
+    const actif = !!(ch.tableId && ch.vue);
+    const b = h("button", "onglet t" + (i % 6) + (ch === choixActif ? " on" : "") + (actif ? "" : " inactif"), ch.label);
+    b.type = "button";
+    if (!actif) b.title = "Table à préciser";
+    else if (ch !== choixActif) b.addEventListener("click", function () { ouvrirControles(entree, ch, c); });
+    nav.appendChild(b);
+  });
+}
 
 function ouvrirSousMenu(entree, c) {
   vueOuverte = true;
@@ -670,7 +723,10 @@ async function chargerColonnes(tableId, champs, ulDiag) {
 async function ouvrirControles(entree, choix, c) {
   vueOuverte = true;
   ctrlCfg = VUES_CTRL[choix.vue];
+  const jeton = ++ctrlJeton;
   montrer("vueCtrl");
+  dessinerOnglets(entree, choix, c);
+  $("statsCtrl").innerHTML = "";
   $("titreCtrl").textContent = choix.label + " — " + c.label;
   $("rechercheCtrl").value = "";
   $("compteurCtrl").textContent = "Chargement…";
@@ -684,6 +740,7 @@ async function ouvrirControles(entree, choix, c) {
 
   try {
     const r = await chargerColonnes(choix.tableId, ctrlCfg.champs, $("diagCtrl"));
+    if (jeton !== ctrlJeton) return;
     if (!r.cols.service) {
       $("alerteCtrl").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucune ligne n'est affichée afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_CTRL / CHAMPS_2PRO (champ « col »)."));
     } else {
@@ -704,6 +761,7 @@ async function ouvrirControles(entree, choix, c) {
     dessinerCtrl();
   } catch (err) {
     console.error(err);
+    if (jeton !== ctrlJeton) return;
     $("compteurCtrl").textContent = "Impossible de lire la table « " + choix.tableId + " » (identifiant correct ? même document ?).";
   }
 }
@@ -758,6 +816,21 @@ function dessinerCtrl() {
   vus.forEach(function (l) {
     const e = l.etabOri || "Établissement d'origine non renseigné";
     (groupes[e] = groupes[e] || []).push(l);
+  });
+
+  // Compteurs : élèves et établissements concernés (sur l'affichage courant)
+  const distincts = function (lignes, cle) {
+    return new Set(lignes.map(function (l) { return l[cle]; }).filter(function (v) { return v; })).size;
+  };
+  const stats = $("statsCtrl");
+  stats.innerHTML = "";
+  [["👩‍🎓", "élève(s)", "eleve", "t4"], ["🏫", "établissement(s) d'origine", "etabOri", "t5"]].forEach(function (d) {
+    const n = distincts(vus, d[2]), tot = distincts(ctrlLignes, d[2]);
+    const el = h("div", "stat " + d[3]);
+    el.appendChild(h("b", null, n));
+    el.appendChild(document.createTextNode(d[0] + " " + d[1]));
+    if (n !== tot) el.appendChild(h("small", null, "sur " + tot));
+    stats.appendChild(el);
   });
 
   const liste = $("listeCtrl");
