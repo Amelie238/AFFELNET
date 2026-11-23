@@ -14,6 +14,8 @@
     --c2: #fde9d9; --c2b: #f5c6a0;
     --c3: #dfeefb; --c3b: #a8cdee;
     --c4: #fbe3ee; --c4b: #efb4cf;
+    --c5: #ece6fb; --c5b: #c9bbf0;
+    --c6: #fdf5cf; --c6b: #ecd98a;
     --ok: #dff3ea; --okt: #2f7a5a;
     --att: #fdf0d5; --attt: #9a6b12;
     --ko: #fbe0e4; --kot: #a23b52;
@@ -42,10 +44,10 @@
   /* ---------- Barre commune des vues ---------- */
   .barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
   .barre h2 { font-size: .98rem; margin: 0; flex: 1 1 200px; font-weight: 600; }
-  button.retour, #recherche { font: inherit; font-size: .85rem; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+  button.retour, #recherche, #rechercheAff, #rechercheCtrl { font: inherit; font-size: .85rem; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
   button.retour { cursor: pointer; background: var(--accent-soft); }
   button.retour:hover { border-color: var(--accent); }
-  #recherche { min-width: 180px; }
+  #recherche, #rechercheAff, #rechercheCtrl { min-width: 220px; }
   #compteur { color: var(--muted); font-size: .8rem; }
 
   /* ---------- Vue tableau générique ---------- */
@@ -85,6 +87,42 @@
   details.diag summary { cursor: pointer; }
   details.diag ul { margin: 6px 0 0; padding-left: 18px; }
   @media (max-width: 640px) { .cand { grid-template-columns: 1fr; } }
+
+  /* ---------- Vue Contrôle de la saisie des candidatures ---------- */
+  .filtreChg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .filtreLib { font-size: .8rem; color: var(--muted); font-weight: 600; margin-right: 2px; }
+  #chipsChg { display: contents; }
+  .chip { font: inherit; font-size: .78rem; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; transition: transform .08s ease, box-shadow .08s ease; }
+  .chip:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  .chip.on { box-shadow: 0 0 0 2px var(--accent); font-weight: 700; }
+  .chip b { font-weight: 700; margin-left: 4px; opacity: .7; }
+  .t0 { background: var(--c1); border-color: var(--c1b); }
+  .t1 { background: var(--c2); border-color: var(--c2b); }
+  .t2 { background: var(--c3); border-color: var(--c3b); }
+  .t3 { background: var(--c4); border-color: var(--c4b); }
+  .t4 { background: var(--c5); border-color: var(--c5b); }
+  .t5 { background: var(--c6); border-color: var(--c6b); }
+  .t-tous { background: var(--accent-soft); border-color: var(--accent); }
+  #listeCtrl { display: flex; flex-direction: column; gap: 14px; }
+  details.etabo { background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 2px 8px rgba(120,100,180,.05); overflow: hidden; }
+  details.etabo > summary { cursor: pointer; list-style: none; padding: 11px 14px; background: linear-gradient(90deg, var(--c5), var(--c3)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  details.etabo > summary::-webkit-details-marker { display: none; }
+  .eonom { font-weight: 600; font-size: .92rem; flex: 1 1 240px; }
+  .eocontact { display: flex; flex-wrap: wrap; gap: 8px; }
+  .eocontact a, .eocontact span { font-size: .75rem; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.75); border: 1px solid var(--border); color: var(--text); text-decoration: none; }
+  .eocontact a:hover { border-color: var(--accent); }
+  .eocontact .absent { color: var(--muted); font-style: italic; }
+  .eonb { font-size: .78rem; color: var(--muted); }
+  .ctab-defil { overflow-x: auto; }
+  table.ctab { font-size: .8rem; }
+  table.ctab th { background: var(--c6); border-bottom: 1px solid var(--c6b); position: static; }
+  table.ctab td { white-space: normal; vertical-align: top; }
+  table.ctab tr:hover td { background: #faf8ff; }
+  table.ctab tr.debut td { border-top: 2px solid var(--border); }
+  table.ctab td.eleve { font-weight: 600; background: #fcfbff; }
+  .rang { display: inline-block; min-width: 24px; text-align: center; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: var(--c1); border: 1px solid var(--c1b); }
+  .code { font-family: Consolas, monospace; font-size: .72rem; padding: 2px 8px; border-radius: 8px; background: var(--c4); border: 1px solid var(--c4b); white-space: nowrap; }
+  .chg { font-size: .74rem; padding: 3px 10px; border-radius: 999px; border: 1px solid; font-weight: 600; display: inline-block; }
 </style>
 </head>
 <body>
@@ -120,6 +158,20 @@
   <details class="diag"><summary>Colonnes utilisées</summary><ul id="diag"></ul></details>
 </div>
 
+<!-- Vue Contrôle de la saisie des candidatures -->
+<div id="vueCtrl" class="cache">
+  <div class="barre">
+    <button class="retour" id="retourCtrl">← Retour</button>
+    <h2 id="titreCtrl"></h2>
+    <input id="rechercheCtrl" type="search" placeholder="Rechercher un élève, un établissement…">
+    <span id="compteurCtrl"></span>
+  </div>
+  <div id="alerteCtrl"></div>
+  <div class="filtreChg"><span class="filtreLib">Changement :</span><span id="chipsChg"></span></div>
+  <div id="listeCtrl"></div>
+  <details class="diag"><summary>Colonnes utilisées</summary><ul id="diagCtrl"></ul></details>
+</div>
+
 <script>
 /* ================== CONFIGURATION ================== */
 
@@ -136,11 +188,11 @@ const CASES = [
 ];
 
 // Entrées affichées dans chaque carte.
-// rendu : "affectation" = liste mise en forme (filtrée selon le service en charge) ; "tableau" = tableau simple.
+// rendu : "affectation" et "controles" = vues mises en forme (filtrées selon le service en charge) ; "tableau" = tableau simple.
 // tableId : identifiant Grist de la table (sans tiret). null = table pas encore précisée.
 const ENTREES = [
   { classe: "e1", label: "Contrôle de la saisie des nomenclatures (février - avril)",         tableId: null,               rendu: "tableau" },
-  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",             tableId: "CONTROLES_1ERE",   rendu: "tableau" },
+  { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",             tableId: "CONTROLES_1ERE",   rendu: "controles" },
   { classe: "e3", label: "Contrôle de l'admission (juin)",                                    tableId: "AFFECTATION_1ERE", rendu: "affectation" },
   { classe: "e4", label: "Saisie des places vacantes - Tours suivants (juillet - septembre)", tableId: null,               rendu: "tableau" }
 ];
@@ -158,6 +210,22 @@ const CHAMPS_AFF = [
   { cle: "prenom",  nom: "Prénom",              col: null, motifs: ["prenom candidat", "prenom eleve", "prenom"], exclure: ["etablissement", "formation"] },
   { cle: "result",  nom: "Résultat",            col: null, motifs: ["resultat affectation", "resultat", "decision affectation", "decision", "affectation"], exclure: ["formation", "service"] },
   { cle: "service", nom: "Service en charge du traitement", col: null, motifs: ["service en charge du traitement", "service en charge", "service"], exclure: [] }
+];
+
+// Colonnes de la table CONTROLES_1ERE (même principe de détection par libellé que ci-dessus).
+const CHAMPS_CTRL = [
+  { cle: "etabOri",   nom: "Établissement d'origine",   col: null, motifs: ["etab origine", "etablissement origine", "etablissement d origine"], exclure: ["telephone", "mel", "numero", "code", "uai"] },
+  { cle: "tel",       nom: "Téléphone établissement",   col: null, motifs: ["numero telephone etab nat eleve", "telephone etab nat eleve", "telephone"], exclure: [] },
+  { cle: "mel",       nom: "Mél établissement",         col: null, motifs: ["mel etab national eleve", "mel etab nat eleve", "mel"], exclure: [] },
+  { cle: "eleve",     nom: "Élève",                     col: null, motifs: ["eleve"], exclure: ["formation", "libelle", "etab", "telephone", "mel", "numero", "nat"] },
+  { cle: "formEleve", nom: "Libellé formation élève",   col: null, motifs: ["libelle formation eleve", "formation eleve"], exclure: [] },
+  { cle: "rang",      nom: "Rang",                      col: null, motifs: ["rang"], exclure: [] },
+  { cle: "formVoeu",  nom: "Libellé formation vœu",     col: null, motifs: ["libelle formation voeu", "formation voeu"], exclure: [] },
+  { cle: "etabAcc",   nom: "Établissement d'accueil",   col: null, motifs: ["etablissement d accueil", "etablissement accueil", "etab accueil", "libelle etablissement voeu", "etablissement voeu", "etab voeu"], exclure: ["origine", "code", "uai", "telephone", "mel", "numero", "nat"] },
+  { cle: "codeAvis",  nom: "Code avis chef étab. vœu",  col: null, motifs: ["code avis chef etab voeu", "code avis"], exclure: [] },
+  { cle: "libAvis",   nom: "Lib Avis CE",               col: null, motifs: ["lib avis ce", "libelle avis ce", "libelle avis", "avis ce"], exclure: ["code"] },
+  { cle: "chg",       nom: "Changement",                col: null, motifs: ["changement"], exclure: [] },
+  { cle: "service",   nom: "Service en charge du traitement", col: null, motifs: ["service en charge du traitement", "service en charge", "service"], exclure: [] }
 ];
 
 /* ================== OUTILS ================== */
@@ -213,7 +281,9 @@ function creerEntree(e, c) {
   el.type = "button";
   el.appendChild(h("small", null, e.tableId ? "Table : " + e.tableId : "Table à préciser"));
   if (e.tableId) el.addEventListener("click", function () {
-    if (e.rendu === "affectation") ouvrirAffectation(e, c); else ouvrirTable(e, c);
+    if (e.rendu === "affectation") ouvrirAffectation(e, c);
+    else if (e.rendu === "controles") ouvrirControles(e, c);
+    else ouvrirTable(e, c);
   });
   return el;
 }
@@ -222,11 +292,13 @@ function retourAccueil() {
   vueOuverte = false;
   $("vueTable").classList.add("cache");
   $("vueAff").classList.add("cache");
+  $("vueCtrl").classList.add("cache");
   $("accueil").classList.remove("cache");
   afficher();
 }
 $("retour").addEventListener("click", retourAccueil);
 $("retourAff").addEventListener("click", retourAccueil);
+$("retourCtrl").addEventListener("click", retourAccueil);
 
 /* ================== VUE TABLEAU GÉNÉRIQUE ================== */
 
@@ -465,6 +537,186 @@ function dessinerAff() {
   $("compteurAff").textContent = vus.length + " / " + candidats.length;
 }
 $("rechercheAff").addEventListener("input", dessinerAff);
+
+/* ================== VUE CONTRÔLE DES CANDIDATURES ================== */
+
+let ctrlLignes = [];            // lignes déjà filtrées sur le service en charge
+let ctrlFiltres = new Set();    // valeurs de « Changement » sélectionnées (vide = toutes)
+let ctrlTeintes = {};           // valeur de « Changement » → classe pastel
+
+// Lit une table et détecte ses colonnes ; renvoie data, cols et la fonction valeur(cle, i).
+async function chargerColonnes(tableId, champs, ulDiag) {
+  const data = await grist.docApi.fetchTable(tableId);
+  let metas;
+  try { metas = await lireMeta(tableId); }
+  catch (e) {
+    metas = Object.keys(data).filter(function (k) { return k !== "id" && k !== "manualSort" && k.indexOf("gristHelper_") !== 0; })
+      .map(function (k) { return { colId: k, label: k, type: "", visible: null }; });
+  }
+  const cols = {};
+  champs.forEach(function (ch) { cols[ch.cle] = trouverColonne(ch, metas); });
+  champs.forEach(function (ch) {
+    ulDiag.appendChild(h("li", null, ch.nom + " ← " + (cols[ch.cle] ? cols[ch.cle].label : "NON TROUVÉE")));
+  });
+  const resolu = {};
+  for (const ch of champs) {
+    const m = cols[ch.cle];
+    if (m && m.type.indexOf("Ref:") === 0) {
+      try {
+        const ref = await grist.docApi.fetchTable(m.type.slice(4));
+        const cible = m.visible && ref[m.visible] ? m.visible : null;
+        const dict = {};
+        ref.id.forEach(function (id, i) { dict[id] = cible ? ref[cible][i] : id; });
+        resolu[ch.cle] = dict;
+      } catch (e) { /* on garde la valeur brute */ }
+    }
+  }
+  const valeur = function (cle, i) {
+    const m = cols[cle];
+    if (!m || !data[m.colId]) return "";
+    const v = data[m.colId][i];
+    return texte(resolu[cle] && resolu[cle][v] !== undefined ? resolu[cle][v] : v);
+  };
+  return { data: data, cols: cols, valeur: valeur };
+}
+
+async function ouvrirControles(entree, c) {
+  vueOuverte = true;
+  $("accueil").classList.add("cache");
+  $("vueCtrl").classList.remove("cache");
+  $("titreCtrl").textContent = entree.label + " — " + c.label;
+  $("rechercheCtrl").value = "";
+  $("compteurCtrl").textContent = "Chargement…";
+  $("listeCtrl").innerHTML = "";
+  $("chipsChg").innerHTML = "";
+  $("alerteCtrl").innerHTML = "";
+  $("diagCtrl").innerHTML = "";
+  ctrlFiltres = new Set();
+  ctrlLignes = [];
+
+  try {
+    const r = await chargerColonnes(entree.tableId, CHAMPS_CTRL, $("diagCtrl"));
+    if (!r.cols.service) {
+      $("alerteCtrl").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucune ligne n'est affichée afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_CTRL (champ « col »)."));
+    } else {
+      const attendues = c.valeurs.map(sansEspaces);
+      (r.data.id || []).forEach(function (_, i) {
+        if (attendues.indexOf(sansEspaces(r.valeur("service", i))) === -1) return;
+        const l = {};
+        CHAMPS_CTRL.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
+        ctrlLignes.push(l);
+      });
+    }
+    // Une teinte pastel par valeur de « Changement » (même ordre partout)
+    ctrlTeintes = {};
+    Array.from(new Set(ctrlLignes.map(function (l) { return l.chg || ""; }))).sort(function (a, b) { return a.localeCompare(b, "fr"); })
+      .forEach(function (v, i) { ctrlTeintes[v] = "t" + (i % 6); });
+    dessinerCtrl();
+  } catch (err) {
+    console.error(err);
+    $("compteurCtrl").textContent = "Impossible de lire la table « " + entree.tableId + " » (identifiant correct ? même document ?).";
+  }
+}
+
+function libChg(v) { return v || "Non renseigné"; }
+
+function dessinerCtrl() {
+  const q = norm($("rechercheCtrl").value);
+
+  // Filtre « Changement » (puces cliquables, sélection multiple ; aucune sélection = tout)
+  const nbParChg = {};
+  ctrlLignes.forEach(function (l) { const v = l.chg || ""; nbParChg[v] = (nbParChg[v] || 0) + 1; });
+  const chips = $("chipsChg");
+  chips.innerHTML = "";
+  const tous = h("button", "chip t-tous" + (ctrlFiltres.size === 0 ? " on" : ""), "Tous");
+  tous.type = "button";
+  tous.appendChild(h("b", null, ctrlLignes.length));
+  tous.addEventListener("click", function () { ctrlFiltres.clear(); dessinerCtrl(); });
+  chips.appendChild(tous);
+  Object.keys(nbParChg).sort(function (a, b) { return a.localeCompare(b, "fr"); }).forEach(function (v) {
+    const b = h("button", "chip " + ctrlTeintes[v] + (ctrlFiltres.has(v) ? " on" : ""), libChg(v));
+    b.type = "button";
+    b.appendChild(h("b", null, nbParChg[v]));
+    b.addEventListener("click", function () {
+      if (ctrlFiltres.has(v)) ctrlFiltres.delete(v); else ctrlFiltres.add(v);
+      dessinerCtrl();
+    });
+    chips.appendChild(b);
+  });
+
+  const vus = ctrlLignes.filter(function (l) {
+    if (ctrlFiltres.size && !ctrlFiltres.has(l.chg || "")) return false;
+    return !q || norm([l.etabOri, l.eleve, l.formEleve, l.formVoeu, l.etabAcc, l.libAvis, l.chg].join(" ")).indexOf(q) !== -1;
+  });
+
+  // Regroupement par établissement d'origine
+  const groupes = {};
+  vus.forEach(function (l) {
+    const e = l.etabOri || "Établissement d'origine non renseigné";
+    (groupes[e] = groupes[e] || []).push(l);
+  });
+
+  const liste = $("listeCtrl");
+  liste.innerHTML = "";
+  const noms = Object.keys(groupes).sort(function (a, b) { return a.localeCompare(b, "fr"); });
+  if (!noms.length) liste.appendChild(h("div", "vide", "Aucune ligne à afficher pour cette structure."));
+
+  noms.forEach(function (nom) {
+    const lignesE = groupes[nom].slice().sort(function (a, b) {
+      return a.eleve.localeCompare(b.eleve, "fr") || (parseFloat(a.rang) || 0) - (parseFloat(b.rang) || 0);
+    });
+    const premier = function (cle) { const f = lignesE.find(function (l) { return l[cle]; }); return f ? f[cle] : ""; };
+    const nbEleves = new Set(lignesE.map(function (l) { return l.eleve; })).size;
+
+    const det = h("details", "etabo");
+    det.open = true;
+    const sum = h("summary");
+    sum.appendChild(h("span", "eonom", "🏫 " + nom));
+    const contact = h("span", "eocontact");
+    const tel = premier("tel"), mel = premier("mel");
+    if (tel) { const a = h("a", null, "📞 " + tel); a.href = "tel:" + tel.replace(/\s+/g, ""); a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
+    else contact.appendChild(h("span", "absent", "📞 non renseigné"));
+    if (mel) { const a = h("a", null, "✉ " + mel); a.href = "mailto:" + mel; a.addEventListener("click", function (ev) { ev.stopPropagation(); }); contact.appendChild(a); }
+    else contact.appendChild(h("span", "absent", "✉ non renseigné"));
+    sum.appendChild(contact);
+    sum.appendChild(h("span", "eonb", nbEleves + " élève(s) · " + lignesE.length + " vœu(x)"));
+    det.appendChild(sum);
+
+    const defil = h("div", "ctab-defil");
+    const t = h("table", "ctab");
+    const hr = t.createTHead().insertRow();
+    ["Élève", "Formation élève", "Rang", "Formation vœu", "Établissement d'accueil", "Code avis", "Avis du chef d'établissement", "Changement"]
+      .forEach(function (x) { hr.appendChild(h("th", null, x)); });
+    const tb = t.createTBody();
+    let i = 0;
+    while (i < lignesE.length) {
+      // lignes consécutives d'un même élève : nom et formation affichés une seule fois
+      let j = i + 1;
+      while (j < lignesE.length && lignesE[j].eleve === lignesE[i].eleve && lignesE[j].formEleve === lignesE[i].formEleve) j++;
+      for (let k = i; k < j; k++) {
+        const l = lignesE[k];
+        const tr = tb.insertRow();
+        if (k === i) tr.className = "debut";
+        if (k === i) {
+          const a = tr.insertCell(); a.className = "eleve"; a.rowSpan = j - i; a.textContent = l.eleve || "—";
+          const b = tr.insertCell(); b.rowSpan = j - i; b.textContent = l.formEleve || "—";
+        }
+        const cr = tr.insertCell(); if (l.rang) cr.appendChild(h("span", "rang", l.rang)); else cr.textContent = "—";
+        tr.insertCell().textContent = l.formVoeu || "—";
+        tr.insertCell().textContent = l.etabAcc || "—";
+        const cc = tr.insertCell(); if (l.codeAvis) cc.appendChild(h("span", "code", l.codeAvis)); else cc.textContent = "—";
+        tr.insertCell().textContent = l.libAvis || "—";
+        const cg = tr.insertCell(); cg.appendChild(h("span", "chg " + (ctrlTeintes[l.chg || ""] || "t-tous"), libChg(l.chg)));
+      }
+      i = j;
+    }
+    defil.appendChild(t);
+    det.appendChild(defil);
+    liste.appendChild(det);
+  });
+  $("compteurCtrl").textContent = vus.length + " / " + ctrlLignes.length + " ligne(s)";
+}
+$("rechercheCtrl").addEventListener("input", dessinerCtrl);
 </script>
 </body>
 </html>
