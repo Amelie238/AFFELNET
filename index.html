@@ -4,200 +4,285 @@
 <meta charset="UTF-8">
 <title>Contrôles de l’affectation – Mapping dynamique</title>
 <style>
-    :root{
-        --bg-main:#f9fbfd; --bg-sidebar:#e3eff9; --bg-content:#ffffff;
-        --color-primary:#4a90e2; --color-secondary:#8bc34a;
-        --color-accent:#c39bd3; --color-text:#333; --hover-bg:#d0e8fb;
-        --border:#d9e6f2;
+    :root {
+        --bg-main: #f9fbfd;
+        --bg-card: #ffffff;
+        --color-primary: #4a90e2;
+        --color-secondary: #8bc34a;
+        --color-accent: #c39bd3;
+        --color-text: #333;
+        --border: #d9e6f2;
+        --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        --card-border-radius: 8px;
     }
-    body{margin:0;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg-main);color:var(--color-text);}
-    .sidebar{width:260px;height:100vh;position:fixed;top:0;left:0;background:var(--bg-sidebar);overflow-y:auto;border-right:1px solid var(--border);}
-    .sidebar h2{margin:0;padding:18px 0;text-align:center;background:var(--color-primary);color:#fff;font-size:1.2rem;}
-    .menu,.submenu{list-style:none;margin:0;padding:0;}
-    .menu > li{border-bottom:1px solid var(--border);}
-    .menu a{display:block;padding:12px 20px;color:var(--color-text);text-decoration:none;transition:background .2s;}
-    .menu a:hover{background:var(--hover-bg);}
-    .menu li.active > a{background:var(--color-secondary);color:#fff;}
-    .submenu{display:none;background:var(--bg-sidebar);}
-    .menu li.active > .submenu{display:block;}
-    .submenu a{padding-left:40px;font-size:0.95rem;}
-    .content{margin-left:260px;padding:30px;background:var(--bg-content);min-height:100vh;}
-    h1{color:var(--color-primary);font-size:1.4rem;}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:20px;}
-    .panel{border:1px solid var(--border);border-radius:4px;background:#fafafa;padding:20px;}
-    .panel h2{margin-top:0;font-size:1.1rem;color:var(--color-primary);}
-    .mapping-table{width:100%;border-collapse:collapse;margin-top:15px;}
-    .mapping-table th,.mapping-table td{border:1px solid var(--border);padding:8px;text-align:left;}
-    .mapping-table th{background:var(--color-accent);color:#fff;}
-    .mapping-table select{width:100%;padding:5px;border:1px solid var(--border);border-radius:3px;background:#fff;}
-    .btn{margin-top:15px;padding:10px 18px;background:var(--color-secondary);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:0.95rem;transition:background .2s;}
-    .btn:hover{background:#7aa73d;}
-    table.result{width:100%;border-collapse:collapse;margin-top:10px;}
-    table.result th,table.result td{border:1px solid var(--border);padding:6px;text-align:left;}
-    table.result th{background:#e2eaf3;}
+
+    body {
+        margin: 0;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        background: var(--bg-main);
+        color: var(--color-text);
+        padding: 20px;
+    }
+
+    /* En-tête */
+    h1 {
+        color: var(--color-primary);
+        font-size: 1.6rem;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    /* Grille des services */
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    /* Cartes des services */
+    .service-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--card-border-radius);
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: var(--card-shadow);
+    }
+
+    .service-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .service-card.selected {
+        border: 2px solid var(--color-primary);
+        background: #f0f4ff;
+    }
+
+    .service-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .service-card input[type="checkbox"] {
+        accent-color: var(--color-primary);
+    }
+
+    /* Badges des contrôles */
+    .control-badge {
+        display: block;
+        padding: 8px 12px;
+        margin: 5px 0;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        background: #f0f0f0;
+        color: var(--color-text);
+    }
+
+    .control-badge.green {
+        background: #e6f4ea;
+        color: #2e7d32;
+    }
+
+    .control-badge.orange {
+        background: #fff3e0;
+        color: #e65100;
+    }
+
+    .control-badge.blue {
+        background: #e3f2fd;
+        color: #1565c0;
+    }
+
+    .control-badge.pink {
+        background: #fce4ec;
+        color: #c2185b;
+    }
+
+    /* Panneau de détails */
+    .details-panel {
+        display: none;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--card-border-radius);
+        padding: 20px;
+        box-shadow: var(--card-shadow);
+    }
+
+    .details-panel.active {
+        display: block;
+    }
+
+    /* Tableau de mapping */
+    .mapping-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+    }
+
+    .mapping-table th, .mapping-table td {
+        border: 1px solid var(--border);
+        padding: 10px;
+        text-align: left;
+    }
+
+    .mapping-table th {
+        background: var(--color-accent);
+        color: #fff;
+    }
+
+    .mapping-table select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fff;
+    }
+
+    /* Boutons */
+    .btn {
+        margin-top: 15px;
+        padding: 10px 18px;
+        background: var(--color-secondary);
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition: background 0.2s;
+    }
+
+    .btn:hover {
+        background: #7aa73d;
+    }
+
+    /* Tableau de résultats */
+    table.result {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    table.result th, table.result td {
+        border: 1px solid var(--border);
+        padding: 8px;
+        text-align: left;
+    }
+
+    table.result th {
+        background: #e2eaf3;
+    }
+
+    /* Grille pour les panneaux de mapping et résultats */
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .panel {
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        background: #fafafa;
+        padding: 20px;
+    }
+
+    .panel h2 {
+        margin-top: 0;
+        font-size: 1.1rem;
+        color: var(--color-primary);
+    }
 </style>
-<script>
-/* -------------------------------------------------------------
-   Fonction générique – appelée par chaque bouton « Appliquer le mapping ».
-   1️⃣ Récupère le service sélectionné.
-   2️⃣ Interroge le back‑end (endpoint /api/affectation) pour obtenir
-      les lignes de la table AFFECTATION‑1ERE filtrées sur ce service.
-   3️⃣ Construit le mapping à partir des <select data‑col="…">.
-   4️⃣ Génère un tableau HTML contenant **seulement** les colonnes
-      mappées (élève = Nom Prénom (INE) fixe).
-   ------------------------------------------------------------- */
-async function appliquerMapping(sectionId){
-    const prefix = `#${sectionId}`;                     // ex. "#section-SRAIOLDS"
-    const service = document.querySelector(`${prefix} select.service`).value;
-
-    if (!service){
-        alert("Merci de choisir un service.");
-        return;
-    }
-
-    // ---------------------------------------------------------
-    // 2️⃣ RÉCUPÉRATION DES DONNÉES (remplacez l’URL par votre API)
-    // ---------------------------------------------------------
-    let rows;
-    try{
-        const resp = await fetch(`/api/affectation?service=${encodeURIComponent(service)}`);
-        if (!resp.ok) throw new Error(`Erreur serveur (${resp.status})`);
-        rows = await resp.json();                     // tableau d’objets JSON
-    }catch(e){
-        console.error(e);
-        alert("Impossible de récupérer les données. Consultez la console pour le détail.");
-        return;
-    }
-
-    // 3️⃣ EXTRAIRE LE MAPPING SAISI par l’utilisateur
-    const mapping = {};
-    document.querySelectorAll(`${prefix} .col-mapping select`).forEach(sel=>{
-        const colKey = sel.dataset.col;               // « etab_accueil », « formation_accueil », …
-        const champ  = sel.value;
-        if (champ) mapping[colKey] = champ;           // on ne garde que les colonnes réellement renseignées
-    });
-
-    // ---------------------------------------------------------
-    // 4️⃣ CONSTRUCTION DU TABLEAU DE RÉSULTAT
-    // ---------------------------------------------------------
-    const table = document.createElement("table");
-    table.className = "result";
-
-    // ==== En‑tête ====
-    const thead = table.createTHead();
-    const trHead = thead.insertRow();
-    // (optionnel) on garde l’identifiant interne
-    const thId = document.createElement("th");
-    thId.textContent = "ID";
-    trHead.appendChild(thId);
-
-    // Colonnes mappées
-    Object.values(mapping).forEach(label=>{
-        const th = document.createElement("th");
-        th.textContent = label;
-        trHead.appendChild(th);
-    });
-
-    // ==== Corps ====
-    const tbody = table.createTBody();
-    rows.forEach(row=>{
-        const tr = tbody.insertRow();
-
-        // ID (ou toute autre clé qui vous intéresse)
-        const tdId = tr.insertCell();
-        tdId.textContent = row.id ?? "";
-        // Colonnes mappées
-        Object.entries(mapping).forEach(([colKey, label])=>{
-            const td = tr.insertCell();
-            // on traduit le colKey interne vers la propriété du JSON reçu
-            switch(colKey){
-                case "etab_accueil":       td.textContent = row.etablissement_accueil   ?? ""; break;
-                case "formation_accueil":  td.textContent = row.formation_accueil       ?? ""; break;
-                case "etab_origine":       td.textContent = row.etablissement_origine  ?? ""; break;
-                case "eleve":              // élève = nom + prénom + INE (fixe)
-                    td.textContent = `${row.nom ?? ""} ${row.prenom ?? ""} (${row.ine ?? ""})`;
-                    break;
-                default: td.textContent = "";   // sécurité
-            }
-        });
-    });
-
-    // ==== Insertion dans le DOM ====
-    const resultDiv = document.querySelector(`${prefix} .result-container`);
-    resultDiv.innerHTML = "";          // vide un éventuel tableau précédent
-    resultDiv.appendChild(table);
-}
-
-/* -------------------------------------------------------------
-   Gestion du menu latéral (déploiement/fermeture)
-   ------------------------------------------------------------- */
-document.addEventListener("DOMContentLoaded",()=>{
-    document.querySelectorAll(".menu > li > a").forEach(link=>{
-        link.addEventListener("click",e=>{
-            const li = e.target.parentElement;
-            const already = li.classList.contains("active");
-            document.querySelectorAll(".menu > li").forEach(item=>item.classList.remove("active"));
-            if (!already) li.classList.add("active");
-            e.preventDefault();
-        });
-    });
-});
-</script>
 </head>
-
 <body>
-<div class="sidebar">
-    <h2>Menu principal</h2>
-    <ul class="menu">
-        <li><a href="#">SRAIOLDS ▾</a>
-            <ul class="submenu"><li><a href="#section-SRAIOLDS">Contrôles de l’affectation</a></li></ul>
-        </li>
-        <li><a href="#">DRAAF ▾</a>
-            <ul class="submenu"><li><a href="#section-DRAAF">Contrôles de l’affectation</a></li></ul>
-        </li>
-        <li><a href="#">DSDEN 24 ▾</a>
-            <ul class="submenu"><li><a href="#section-DSDEN24">Contrôles de l’affectation</a></li></ul>
-        </li>
-        <li><a href="#">DSDEN 33 ▾</a>
-            <ul class="submenu"><li><a href="#section-DSDEN33">Contrôles de l’affectation</a></li></ul>
-        </li>
-        <li><a href="#">DSDEN 40 ▾</a>
-            <ul class="submenu"><li><a href="#section-DSDEN40">Contrôles de l’affectation</a></li></ul>
-        </li>
-        <li><a href="#">DSDEN 47 ▾</a>
-            <ul class="submenu"><li><a href="#section-DSDEN47">Contrôles de l’affectation</a></li></ul>
-        </li>
-        <li><a href="#">DSDEN 64 ▾</a>
-            <ul class="submenu"><li><a href="#section-DSDEN64">Contrôles de l’affectation</a></li></ul>
-        </li>
-    </ul>
-</div>
+    <h1>Contrôles de l’affectation</h1>
 
-<div class="content">
-    <!-- ==============================================================
-         SECTION GÉNÉRIQUE – on ne répète le code qu’une fois, on ne
-         change que l’ID (et le titre affiché) pour chaque direction.
-         ============================================================== -->
-    <!-- ================== SRAIOLDS ================== -->
-    <section id="section-SRAIOLDS">
-        <h1>Contrôles de l’affectation – SRAIOLDS</h1>
+    <!-- Grille des services -->
+    <div class="services-grid">
+        <!-- SRAIOLDS -->
+        <div class="service-card" onclick="showDetails('SRAIOLDS')">
+            <h3>
+                <input type="checkbox" id="checkbox-SRAIOLDS">
+                <label for="checkbox-SRAIOLDS">SRAIOLDS</label>
+            </h3>
+        </div>
+
+        <!-- DRAAF -->
+        <div class="service-card" onclick="showDetails('DRAAF')">
+            <h3>
+                <input type="checkbox" id="checkbox-DRAAF">
+                <label for="checkbox-DRAAF">DRAAF</label>
+            </h3>
+        </div>
+
+        <!-- DSDEN 24 (sélectionné par défaut) -->
+        <div class="service-card selected" onclick="showDetails('DSDEN24')">
+            <h3>
+                <input type="checkbox" id="checkbox-DSDEN24" checked>
+                <label for="checkbox-DSDEN24">DSDEN 24</label>
+            </h3>
+            <div class="control-badge green">Contrôle de la saisie des nomenclatures (février - avril)<br><small>Table à préciser</small></div>
+            <div class="control-badge orange">Contrôle de la saisie des candidatures (avril - juin)<br><small>Table : CONTROLES_1ERE</small></div>
+            <div class="control-badge blue">Contrôle de l'admission (juin)<br><small>Table : AFFECTATION_1ERE</small></div>
+            <div class="control-badge pink">Saisie des places vacantes - Tours suivants (juillet - septembre)<br><small>Table à préciser</small></div>
+        </div>
+
+        <!-- DSDEN 33 -->
+        <div class="service-card" onclick="showDetails('DSDEN33')">
+            <h3>
+                <input type="checkbox" id="checkbox-DSDEN33">
+                <label for="checkbox-DSDEN33">DSDEN 33</label>
+            </h3>
+        </div>
+
+        <!-- DSDEN 40 -->
+        <div class="service-card" onclick="showDetails('DSDEN40')">
+            <h3>
+                <input type="checkbox" id="checkbox-DSDEN40">
+                <label for="checkbox-DSDEN40">DSDEN 40</label>
+            </h3>
+        </div>
+
+        <!-- DSDEN 47 -->
+        <div class="service-card" onclick="showDetails('DSDEN47')">
+            <h3>
+                <input type="checkbox" id="checkbox-DSDEN47">
+                <label for="checkbox-DSDEN47">DSDEN 47</label>
+            </h3>
+        </div>
+
+        <!-- DSDEN 64 -->
+        <div class="service-card" onclick="showDetails('DSDEN64')">
+            <h3>
+                <input type="checkbox" id="checkbox-DSDEN64">
+                <label for="checkbox-DSDEN64">DSDEN 64</label>
+            </h3>
+        </div>
+    </div>
+
+    <!-- Panneau de détails (affiché pour DSDEN 24 par défaut) -->
+    <div id="details-SRAIOLDS" class="details-panel">
+        <h2>Contrôles de l’affectation – SRAIOLDS</h2>
         <div class="grid">
-            <!-- PANEL MAPPING -->
             <div class="panel">
                 <h2>Paramétrage du mapping</h2>
-
-                <label for="service-SRAIOLDS"><strong>Service en charge du traitement :</strong></label>
+                <label for="service-SRAIOLDS"><strong>Service en charge du traitement :</strong></label>
                 <select id="service-SRAIOLDS" class="service">
                     <option value="">— Sélectionner —</option>
-                    <option value="SRAIOLDS">SRAIOLDS</option>
+                    <option value="SRAIOLDS" selected>SRAIOLDS</option>
                     <option value="DRAAF">DRAAF</option>
-                    <option value="DSDEN 24">DSDEN 24</option>
-                    <option value="DSDEN 33">DSDEN 33</option>
-                    <option value="DSDEN 40">DSDEN 40</option>
-                    <option value="DSDEN 47">DSDEN 47</option>
-                    <option value="DSDEN 64">DSDEN 64</option>
+                    <option value="DSDEN 24">DSDEN 24</option>
+                    <option value="DSDEN 33">DSDEN 33</option>
+                    <option value="DSDEN 40">DSDEN 40</option>
+                    <option value="DSDEN 47">DSDEN 47</option>
+                    <option value="DSDEN 64">DSDEN 64</option>
                 </select>
-
                 <table class="mapping-table">
                     <thead><tr><th>Colonne de la table</th><th>Champ à afficher</th></tr></thead>
                     <tbody>
@@ -219,39 +304,31 @@ document.addEventListener("DOMContentLoaded",()=>{
                             <select data-col="eleve" disabled><option value="Eleve">Nom – Prénom – INE</option></select></td></tr>
                     </tbody>
                 </table>
-
-                <button class="btn" onclick="appliquerMapping('section-SRAIOLDS')">
-                    Appliquer le mapping
-                </button>
+                <button class="btn" onclick="appliquerMapping('SRAIOLDS')">Appliquer le mapping</button>
             </div>
-
-            <!-- PANEL RÉSULTAT -->
             <div class="panel">
                 <h2>Résultat filtré</h2>
                 <div class="result-container"></div>
             </div>
         </div>
-        <hr>
-    </section>
+    </div>
 
-    <!-- ================== DRAAF ================== -->
-    <section id="section-DRAAF">
-        <h1>Contrôles de l’affectation – DRAAF</h1>
+    <div id="details-DRAAF" class="details-panel">
+        <h2>Contrôles de l’affectation – DRAAF</h2>
         <div class="grid">
             <div class="panel">
                 <h2>Paramétrage du mapping</h2>
-                <label for="service-DRAAF"><strong>Service en charge du traitement :</strong></label>
+                <label for="service-DRAAF"><strong>Service en charge du traitement :</strong></label>
                 <select id="service-DRAAF" class="service">
                     <option value="">— Sélectionner —</option>
                     <option value="SRAIOLDS">SRAIOLDS</option>
-                    <option value="DRAAF">DRAAF</option>
-                    <option value="DSDEN 24">DSDEN 24</option>
-                    <option value="DSDEN 33">DSDEN 33</option>
-                    <option value="DSDEN 40">DSDEN 40</option>
-                    <option value="DSDEN 47">DSDEN 47</option>
-                    <option value="DSDEN 64">DSDEN 64</option>
+                    <option value="DRAAF" selected>DRAAF</option>
+                    <option value="DSDEN 24">DSDEN 24</option>
+                    <option value="DSDEN 33">DSDEN 33</option>
+                    <option value="DSDEN 40">DSDEN 40</option>
+                    <option value="DSDEN 47">DSDEN 47</option>
+                    <option value="DSDEN 64">DSDEN 64</option>
                 </select>
-
                 <table class="mapping-table">
                     <thead><tr><th>Colonne</th><th>Champ</th></tr></thead>
                     <tbody>
@@ -273,38 +350,31 @@ document.addEventListener("DOMContentLoaded",()=>{
                             <select data-col="eleve" disabled><option value="Eleve">Nom – Prénom – INE</option></select></td></tr>
                     </tbody>
                 </table>
-
-                <button class="btn" onclick="appliquerMapping('section-DRAAF')">
-                    Appliquer le mapping
-                </button>
+                <button class="btn" onclick="appliquerMapping('DRAAF')">Appliquer le mapping</button>
             </div>
-
             <div class="panel">
                 <h2>Résultat filtré</h2>
                 <div class="result-container"></div>
             </div>
         </div>
-        <hr>
-    </section>
+    </div>
 
-    <!-- ================== DSDEN 24 ================== -->
-    <section id="section-DSDEN24">
-        <h1>Contrôles de l’affectation – DSDEN 24</h1>
+    <div id="details-DSDEN24" class="details-panel active">
+        <h2>Contrôles de l’affectation – DSDEN 24</h2>
         <div class="grid">
             <div class="panel">
                 <h2>Paramétrage du mapping</h2>
-                <label for="service-DSDEN24"><strong>Service en charge du traitement :</strong></label>
+                <label for="service-DSDEN24"><strong>Service en charge du traitement :</strong></label>
                 <select id="service-DSDEN24" class="service">
                     <option value="">— Sélectionner —</option>
                     <option value="SRAIOLDS">SRAIOLDS</option>
                     <option value="DRAAF">DRAAF</option>
-                    <option value="DSDEN 24">DSDEN 24</option>
-                    <option value="DSDEN 33">DSDEN 33</option>
-                    <option value="DSDEN 40">DSDEN 40</option>
-                    <option value="DSDEN 47">DSDEN 47</option>
-                    <option value="DSDEN 64">DSDEN 64</option>
+                    <option value="DSDEN 24" selected>DSDEN 24</option>
+                    <option value="DSDEN 33">DSDEN 33</option>
+                    <option value="DSDEN 40">DSDEN 40</option>
+                    <option value="DSDEN 47">DSDEN 47</option>
+                    <option value="DSDEN 64">DSDEN 64</option>
                 </select>
-
                 <table class="mapping-table">
                     <thead><tr><th>Colonne</th><th>Champ</th></tr></thead>
                     <tbody>
@@ -326,22 +396,158 @@ document.addEventListener("DOMContentLoaded",()=>{
                             <select data-col="eleve" disabled><option value="Eleve">Nom – Prénom – INE</option></select></td></tr>
                     </tbody>
                 </table>
-
-                <button class="btn" onclick="appliquerMapping('section-DSDEN24')">
-                    Appliquer le mapping
-                </button>
+                <button class="btn" onclick="appliquerMapping('DSDEN24')">Appliquer le mapping</button>
             </div>
-
             <div class="panel">
                 <h2>Résultat filtré</h2>
                 <div class="result-container"></div>
             </div>
         </div>
-        <hr>
-    </section>
+    </div>
 
-    <!-- Répétez le même bloc pour DSDEN 33, DSDEN 40, DSDEN 47, DSDEN 64
-         (seuls les IDs changent : section-DSDEN33, section-DSDEN40, …) -->
-</div>
+    <!-- Ajoutez les autres sections (DSDEN33, DSDEN40, etc.) ici -->
+    <div id="details-DSDEN33" class="details-panel">
+        <h2>Contrôles de l’affectation – DSDEN 33</h2>
+        <div class="grid">
+            <div class="panel">
+                <h2>Paramétrage du mapping</h2>
+                <label for="service-DSDEN33"><strong>Service en charge du traitement :</strong></label>
+                <select id="service-DSDEN33" class="service">
+                    <option value="">— Sélectionner —</option>
+                    <option value="SRAIOLDS">SRAIOLDS</option>
+                    <option value="DRAAF">DRAAF</option>
+                    <option value="DSDEN 24">DSDEN 24</option>
+                    <option value="DSDEN 33" selected>DSDEN 33</option>
+                    <option value="DSDEN 40">DSDEN 40</option>
+                    <option value="DSDEN 47">DSDEN 47</option>
+                    <option value="DSDEN 64">DSDEN 64</option>
+                </select>
+                <table class="mapping-table">
+                    <thead><tr><th>Colonne</th><th>Champ</th></tr></thead>
+                    <tbody>
+                        <tr class="col-mapping"><td>colonne_1 – établissement d’accueil</td><td>
+                            <select data-col="etab_accueil"><option value="">— Sélectionner —</option>
+                                <option value="Établissement d’accueil">Établissement d’accueil</option>
+                                <option value="Code établissement">Code établissement</option>
+                                <option value="Adresse">Adresse</option></select></td></tr>
+                        <tr class="col-mapping"><td>colonne_2 – formation d’accueil</td><td>
+                            <select data-col="formation_accueil"><option value="">— Sélectionner —</option>
+                                <option value="Formation d’accueil">Formation d’accueil</option>
+                                <option value="Code formation">Code formation</option></select></td></tr>
+                        <tr class="col-mapping"><td>colonne_3 – établissement d’origine</td><td>
+                            <select data-col="etab_origine"><option value="">— Sélectionner —</option>
+                                <option value="Établissement d’origine">Établissement d’origine</option>
+                                <option value="Code établissement d’origine">Code établissement d’origine</option>
+                                <option value="Adresse d’origine">Adresse d’origine</option></select></td></tr>
+                        <tr class="col-mapping"><td>colonne_4 – élève</td><td>
+                            <select data-col="eleve" disabled><option value="Eleve">Nom – Prénom – INE</option></select></td></tr>
+                    </tbody>
+                </table>
+                <button class="btn" onclick="appliquerMapping('DSDEN33')">Appliquer le mapping</button>
+            </div>
+            <div class="panel">
+                <h2>Résultat filtré</h2>
+                <div class="result-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Fonction pour afficher les détails d'un service
+    function showDetails(serviceId) {
+        // Masquer tous les panneaux de détails
+        document.querySelectorAll('.details-panel').forEach(panel => {
+            panel.classList.remove('active');
+        });
+
+        // Désélectionner toutes les cartes
+        document.querySelectorAll('.service-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+
+        // Sélectionner la carte cliquée
+        const clickedCard = event.currentTarget;
+        clickedCard.classList.add('selected');
+
+        // Afficher le panneau de détails correspondant
+        const detailsPanel = document.getElementById(`details-${serviceId}`);
+        if (detailsPanel) {
+            detailsPanel.classList.add('active');
+        }
+    }
+
+    // Fonction pour appliquer le mapping (inchangée)
+    async function appliquerMapping(sectionId) {
+        const prefix = `#details-${sectionId}`;
+        const service = document.querySelector(`${prefix} select.service`).value;
+
+        if (!service) {
+            alert("Merci de choisir un service.");
+            return;
+        }
+
+        let rows;
+        try {
+            const resp = await fetch(`/api/affectation?service=${encodeURIComponent(service)}`);
+            if (!resp.ok) throw new Error(`Erreur serveur (${resp.status})`);
+            rows = await resp.json();
+        } catch (e) {
+            console.error(e);
+            alert("Impossible de récupérer les données. Consultez la console pour le détail.");
+            return;
+        }
+
+        const mapping = {};
+        document.querySelectorAll(`${prefix} .col-mapping select`).forEach(sel => {
+            const colKey = sel.dataset.col;
+            const champ = sel.value;
+            if (champ) mapping[colKey] = champ;
+        });
+
+        const table = document.createElement("table");
+        table.className = "result";
+
+        const thead = table.createTHead();
+        const trHead = thead.insertRow();
+        const thId = document.createElement("th");
+        thId.textContent = "ID";
+        trHead.appendChild(thId);
+
+        Object.values(mapping).forEach(label => {
+            const th = document.createElement("th");
+            th.textContent = label;
+            trHead.appendChild(th);
+        });
+
+        const tbody = table.createTBody();
+        rows.forEach(row => {
+            const tr = tbody.insertRow();
+            const tdId = tr.insertCell();
+            tdId.textContent = row.id ?? "";
+
+            Object.entries(mapping).forEach(([colKey, label]) => {
+                const td = tr.insertCell();
+                switch(colKey) {
+                    case "etab_accueil": td.textContent = row.etablissement_accueil ?? ""; break;
+                    case "formation_accueil": td.textContent = row.formation_accueil ?? ""; break;
+                    case "etab_origine": td.textContent = row.etablissement_origine ?? ""; break;
+                    case "eleve":
+                        td.textContent = `${row.nom ?? ""} ${row.prenom ?? ""} (${row.ine ?? ""})`;
+                        break;
+                    default: td.textContent = "";
+                }
+            });
+        });
+
+        const resultDiv = document.querySelector(`${prefix} .result-container`);
+        resultDiv.innerHTML = "";
+        resultDiv.appendChild(table);
+    }
+
+    // Initialisation : afficher DSDEN 24 par défaut
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById('details-DSDEN24').classList.add('active');
+    });
+    </script>
 </body>
 </html>
