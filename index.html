@@ -39,7 +39,10 @@
   .entree.e2 { background: var(--c2); border-color: var(--c2b); }
   .entree.e3 { background: var(--c3); border-color: var(--c3b); }
   .entree.e4 { background: var(--c4); border-color: var(--c4b); }
+  .entree.e5 { background: var(--c5); border-color: var(--c5b); }
+  .entree.e6 { background: var(--c6); border-color: var(--c6b); }
   .entree.inactif { opacity: .6; cursor: default; border-style: dashed; }
+  .entree.nc { opacity: .65; }
 
   /* ---------- Barre commune des vues ---------- */
   .barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -223,10 +226,21 @@ const SOUS_CHOIX = [
   { classe: "e4", label: "Motifs de dérog saisis à tort", tableId: null,                         vue: null }
 ];
 
+// Choix proposés quand on clique sur « Contrôle de l'admission (juin) ».
+// Les tables ne sont pas encore précisées : à renseigner (tableId + vue) au fur et à mesure.
+const SOUS_CHOIX_ADMISSION = [
+  { classe: "e1", label: "Montants non affectés en 1ère Pro",         tableId: null, vue: null },
+  { classe: "e2", label: "Montants non affectés en 1ère Techno",      tableId: null, vue: null },
+  { classe: "e3", label: "Élèves du secteur non affectés en 2nde GT", tableId: null, vue: null },
+  { classe: "e4", label: "Redoublants non affectés",                  tableId: null, vue: null },
+  { classe: "e5", label: "2nde pro refusés sur tous leurs vœux",      tableId: null, vue: null },
+  { classe: "e6", label: "Avis DSDEN Emménagement",                   tableId: null, vue: null }
+];
+
 const ENTREES = [
   { classe: "e1", label: "Contrôle de la saisie des nomenclatures (février - avril)",         tableId: null,               rendu: "tableau" },
   { classe: "e2", label: "Contrôle de la saisie des candidatures (avril - juin)",             tableId: null,               rendu: "sousmenu", sousmenu: SOUS_CHOIX },
-  { classe: "e3", label: "Contrôle de l'admission (juin)",                                    tableId: "AFFECTATION_1ERE", rendu: "affectation" },
+  { classe: "e3", label: "Contrôle de l'admission (juin)",                                    tableId: null,               rendu: "sousmenu", sousmenu: SOUS_CHOIX_ADMISSION },
   { classe: "e4", label: "Saisie des places vacantes - Tours suivants (juillet - septembre)", tableId: null,               rendu: "tableau" }
 ];
 
@@ -360,6 +374,7 @@ if (typeof grist === "undefined") {
   // Accès complet nécessaire pour lire les tables CONTROLES_1ERE et AFFECTATION_1ERE.
   grist.ready({ requiredAccess: "full" });
   afficher();
+  setTimeout(precharger, 0);
 }
 
 function afficher() {
@@ -454,9 +469,22 @@ $("recherche").addEventListener("input", dessiner);
 let candidats = [];   // lignes déjà filtrées sur le service en charge
 
 // Métadonnées des colonnes (libellé, type, colonne affichée des références).
+// Cache des lectures (tables, métadonnées) : une même table n'est lue qu'une fois pendant CACHE_DUREE.
+const CACHE_DUREE = 5 * 60 * 1000;
+const cacheLectures = {};
+function memo(cle, fn) {
+  const e = cacheLectures[cle];
+  if (e && Date.now() - e.t < CACHE_DUREE) return e.p;
+  const p = Promise.resolve().then(fn);
+  cacheLectures[cle] = { t: Date.now(), p: p };
+  p.catch(function () { if (cacheLectures[cle] && cacheLectures[cle].p === p) delete cacheLectures[cle]; });
+  return p;
+}
+function lireTable(id) { return memo("t:" + id, function () { return grist.docApi.fetchTable(id); }); }
+
 async function lireMeta(tableId) {
-  const T = await grist.docApi.fetchTable("_grist_Tables");
-  const C = await grist.docApi.fetchTable("_grist_Tables_column");
+  const res = await Promise.all([lireTable("_grist_Tables"), lireTable("_grist_Tables_column")]);
+  const T = res[0], C = res[1];
   const ti = T.tableId.indexOf(tableId);
   if (ti < 0) throw new Error("table introuvable");
   const tid = T.id[ti];
@@ -686,10 +714,11 @@ function ouvrirSousMenu(entree, c) {
       const nbs = h("div", "nbs");
       nbs.appendChild(h("span", "att", "Calcul en cours…"));
       el.appendChild(nbs);
-      lireLignesCtrl(ch, c, document.createElement("ul")).then(function (r) {
+      lireLignesCtrl(ch, c, null).then(function (r) {
         if (jetonS !== sousJeton) return;
         nbs.innerHTML = "";
         if (!r.serviceTrouve) { nbs.appendChild(h("span", "att", "Colonne « Service » introuvable")); return; }
+        if (!r.lignes.length) { nbs.appendChild(h("span", "att", "Non concerné")); el.classList.add("nc"); return; }
         nbs.appendChild(h("span", null, "👩‍🎓 " + pluriel(compterDistincts(r.lignes, "eleve"), "élève")));
         nbs.appendChild(h("span", null, "🏫 " + pluriel(compterDistincts(r.lignes, "etabOri"), "établissement")));
       }).catch(function () {
@@ -703,32 +732,27 @@ function ouvrirSousMenu(entree, c) {
 }
 
 // Lit une table et détecte ses colonnes ; renvoie data, cols et la fonction valeur(cle, i).
-async function chargerColonnes(tableId, champs, ulDiag) {
-  const data = await grist.docApi.fetchTable(tableId);
-  let metas;
-  try { metas = await lireMeta(tableId); }
-  catch (e) {
-    metas = Object.keys(data).filter(function (k) { return k !== "id" && k !== "manualSort" && k.indexOf("gristHelper_") !== 0; })
-      .map(function (k) { return { colId: k, label: k, type: "", visible: null }; });
-  }
+// Les lectures (table, métadonnées, tables référencées) sont mises en cache et faites en parallèle.
+async function chargerColonnes(tableId, champs) {
+  const res = await Promise.all([lireTable(tableId), lireMeta(tableId).catch(function () { return null; })]);
+  const data = res[0];
+  const metas = res[1] || Object.keys(data)
+    .filter(function (k) { return k !== "id" && k !== "manualSort" && k.indexOf("gristHelper_") !== 0; })
+    .map(function (k) { return { colId: k, label: k, type: "", visible: null }; });
   const cols = {};
   champs.forEach(function (ch) { cols[ch.cle] = trouverColonne(ch, metas); });
-  champs.forEach(function (ch) {
-    ulDiag.appendChild(h("li", null, ch.nom + " ← " + (cols[ch.cle] ? cols[ch.cle].label : "NON TROUVÉE")));
-  });
   const resolu = {};
-  for (const ch of champs) {
+  await Promise.all(champs.map(async function (ch) {
     const m = cols[ch.cle];
-    if (m && m.type.indexOf("Ref:") === 0) {
-      try {
-        const ref = await grist.docApi.fetchTable(m.type.slice(4));
-        const cible = m.visible && ref[m.visible] ? m.visible : null;
-        const dict = {};
-        ref.id.forEach(function (id, i) { dict[id] = cible ? ref[cible][i] : id; });
-        resolu[ch.cle] = dict;
-      } catch (e) { /* on garde la valeur brute */ }
-    }
-  }
+    if (!m || m.type.indexOf("Ref:") !== 0) return;
+    try {
+      const ref = await lireTable(m.type.slice(4));
+      const cible = m.visible && ref[m.visible] ? m.visible : null;
+      const dict = {};
+      ref.id.forEach(function (id, i) { dict[id] = cible ? ref[cible][i] : id; });
+      resolu[ch.cle] = dict;
+    } catch (e) { /* on garde la valeur brute */ }
+  }));
   const valeur = function (cle, i) {
     const m = cols[cle];
     if (!m || !data[m.colId]) return "";
@@ -738,27 +762,48 @@ async function chargerColonnes(tableId, champs, ulDiag) {
   return { data: data, cols: cols, valeur: valeur };
 }
 
-// Lit la table d'un choix et ne garde que les lignes du service en charge correspondant à la structure.
-// Renvoie { lignes, serviceTrouve }.
-async function lireLignesCtrl(choix, c, ulDiag) {
-  const cfg = VUES_CTRL[choix.vue];
-  const r = await chargerColonnes(choix.tableId, cfg.champs, ulDiag);
-  const lignes = [];
-  if (!r.cols.service) return { lignes: lignes, serviceTrouve: false };
-  const attendues = c.valeurs.map(sansEspaces);
-  (r.data.id || []).forEach(function (_, i) {
-    if (attendues.indexOf(sansEspaces(r.valeur("service", i))) === -1) return;
-    const l = {};
-    cfg.champs.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
-    lignes.push(l);
+// Toutes les lignes d'une table (tous services), construites une seule fois puis mises en cache.
+function lignesTable(choix) {
+  return memo("l:" + choix.tableId, async function () {
+    const cfg = VUES_CTRL[choix.vue];
+    const r = await chargerColonnes(choix.tableId, cfg.champs);
+    const lignes = [];
+    if (r.cols.service) {
+      (r.data.id || []).forEach(function (_, i) {
+        const l = {};
+        cfg.champs.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
+        l._svc = sansEspaces(l.service);
+        lignes.push(l);
+      });
+    }
+    return { cols: r.cols, champs: cfg.champs, lignes: lignes, serviceTrouve: !!r.cols.service };
   });
-  return { lignes: lignes, serviceTrouve: true };
+}
+
+// Garde uniquement les lignes du service en charge correspondant à la structure. Renvoie { lignes, serviceTrouve }.
+async function lireLignesCtrl(choix, c, ulDiag) {
+  const t = await lignesTable(choix);
+  if (ulDiag) t.champs.forEach(function (ch) {
+    ulDiag.appendChild(h("li", null, ch.nom + " ← " + (t.cols[ch.cle] ? t.cols[ch.cle].label : "NON TROUVÉE")));
+  });
+  if (!t.serviceTrouve) return { lignes: [], serviceTrouve: false };
+  const attendues = c.valeurs.map(sansEspaces);
+  return { lignes: t.lignes.filter(function (l) { return attendues.indexOf(l._svc) !== -1; }), serviceTrouve: true };
 }
 
 function compterDistincts(lignes, cle) {
   return new Set(lignes.map(function (l) { return l[cle]; }).filter(function (v) { return v; })).size;
 }
 function pluriel(n, mot) { return n + " " + mot + (n > 1 ? "s" : ""); }
+
+// Préchargement en arrière-plan des tables des sous-menus (les clics suivants sont alors quasi instantanés).
+function precharger() {
+  ENTREES.forEach(function (e) {
+    (e.sousmenu || []).forEach(function (ch) {
+      if (ch.tableId && ch.vue) lignesTable(ch).catch(function () {});
+    });
+  });
+}
 
 async function ouvrirControles(entree, choix, c) {
   vueOuverte = true;
