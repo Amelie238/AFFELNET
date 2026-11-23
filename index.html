@@ -22,16 +22,13 @@
   * { box-sizing: border-box; }
   body { margin: 0; padding: 16px; font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
   h1 { font-size: 1.05rem; margin: 0 0 12px; font-weight: 600; }
-  #message { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
   .cache { display: none !important; }
 
   /* ---------- Accueil ---------- */
   #grille { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .carte { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(120,100,180,.06); }
-  .carte.active { border-color: var(--accent); background: linear-gradient(180deg, var(--accent-soft), var(--card) 60%); }
-  .case { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
-  .case input { width: 18px; height: 18px; accent-color: #9b84e8; cursor: pointer; }
-  .case input:disabled { cursor: not-allowed; }
+  .carte { border-color: var(--accent); background: linear-gradient(180deg, var(--accent-soft), var(--card) 60%); }
+  .case { font-weight: 600; }
   .entrees { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
   .entree { display: block; width: 100%; text-align: left; font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid; font-size: .85rem; line-height: 1.3; color: var(--text); cursor: pointer; transition: transform .08s ease, box-shadow .08s ease; }
   .entree:hover:not(.inactif) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
@@ -92,9 +89,7 @@
 </head>
 <body>
 
-<div id="message">En attente d'une ligne de la table « Utilisateurs »…</div>
-
-<!-- Accueil : cases de la table « Utilisateurs » -->
+<!-- Accueil : une carte par structure, avec les 4 entrées -->
 <div id="accueil">
   <h1>Accès aux contrôles par structure</h1>
   <div id="grille"></div>
@@ -128,19 +123,19 @@
 <script>
 /* ================== CONFIGURATION ================== */
 
-// Colonnes booléennes de la table « Utilisateurs » (associées via le panneau de droite de Grist).
+// Structures affichées sur l'accueil (plus aucun lien avec la table « Utilisateurs »).
 // "valeurs" : valeurs de la colonne « Service en charge du traitement » qui rattachent un candidat à cette case.
 const CASES = [
-  { label: "SRAIOLDS", cle: "SRAIOLDS", valeurs: ["SAIO", "SRAIOLDS"] },
-  { label: "DRAAF",    cle: "DRAAF",    valeurs: ["DRAAF"] },
-  { label: "DSDEN 24", cle: "DSDEN_24", valeurs: ["DSDEN 24"] },
-  { label: "DSDEN 33", cle: "DSDEN_33", valeurs: ["DSDEN 33"] },
-  { label: "DSDEN 40", cle: "DSDEN_40", valeurs: ["DSDEN 40"] },
-  { label: "DSDEN 47", cle: "DSDEN_47", valeurs: ["DSDEN 47"] },
-  { label: "DSDEN 64", cle: "DSDEN_64", valeurs: ["DSDEN 64"] }
+  { label: "SRAIOLDS", valeurs: ["SAIO", "SRAIOLDS"] },
+  { label: "DRAAF",    valeurs: ["DRAAF"] },
+  { label: "DSDEN 24", valeurs: ["DSDEN 24"] },
+  { label: "DSDEN 33", valeurs: ["DSDEN 33"] },
+  { label: "DSDEN 40", valeurs: ["DSDEN 40"] },
+  { label: "DSDEN 47", valeurs: ["DSDEN 47"] },
+  { label: "DSDEN 64", valeurs: ["DSDEN 64"] }
 ];
 
-// Entrées affichées quand une case est cochée.
+// Entrées affichées dans chaque carte.
 // rendu : "affectation" = liste mise en forme (filtrée selon le service en charge) ; "tableau" = tableau simple.
 // tableId : identifiant Grist de la table (sans tiret). null = table pas encore précisée.
 const ENTREES = [
@@ -190,59 +185,25 @@ function texte(v) {
 
 /* ================== ACCUEIL ================== */
 
-let enregistrement = null;
-let associees = {};
 let vueOuverte = false;
-const grille = $("grille"), message = $("message");
+const grille = $("grille");
 
 if (typeof grist === "undefined") {
-  message.textContent = "Erreur : grist-plugin-api.js est introuvable. Vérifiez qu'il est bien dans le dépôt GitHub, à côté de index.html.";
+  grille.textContent = "Erreur : grist-plugin-api.js est introuvable. Vérifiez qu'il est bien dans le dépôt GitHub, à côté de index.html.";
 } else {
-  grist.ready({
-    requiredAccess: "full",
-    columns: CASES.map(function (c) { return { name: c.cle, title: c.label, type: "Bool", optional: true }; })
-  });
-  grist.onRecord(function (rec, mappings) {
-    associees = {};
-    CASES.forEach(function (c) { associees[c.cle] = !!(mappings && mappings[c.cle]); });
-    enregistrement = rec ? grist.mapColumnNames(rec) : null;
-    if (!vueOuverte) afficher();
-  });
+  // Accès complet nécessaire pour lire les tables CONTROLES_1ERE et AFFECTATION_1ERE.
+  grist.ready({ requiredAccess: "full" });
+  afficher();
 }
 
 function afficher() {
   grille.innerHTML = "";
-  if (!enregistrement) {
-    message.textContent = "En attente d'une ligne de la table « Utilisateurs »… (cliquez sur une ligne ; vérifiez la source de données du widget)";
-    message.classList.remove("cache");
-    return;
-  }
-  const nb = CASES.filter(function (c) { return associees[c.cle]; }).length;
-  if (nb === 0) {
-    message.textContent = "Associez chaque case à sa colonne dans le panneau de droite (« Colonnes visibles »).";
-    message.classList.remove("cache");
-  } else {
-    message.classList.add("cache");
-  }
-
   CASES.forEach(function (c) {
-    const coche = !!enregistrement[c.cle];
-    const carte = h("div", "carte" + (coche ? " active" : ""));
-    const lbl = h("label", "case");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = coche;
-    cb.disabled = !associees[c.cle];
-    cb.addEventListener("change", function () { basculer(c, cb.checked); });
-    lbl.appendChild(cb);
-    lbl.appendChild(document.createTextNode(c.label));
-    carte.appendChild(lbl);
-
-    if (coche) {
-      const bloc = h("div", "entrees");
-      ENTREES.forEach(function (e) { bloc.appendChild(creerEntree(e, c)); });
-      carte.appendChild(bloc);
-    }
+    const carte = h("div", "carte");
+    carte.appendChild(h("div", "case", c.label));
+    const bloc = h("div", "entrees");
+    ENTREES.forEach(function (e) { bloc.appendChild(creerEntree(e, c)); });
+    carte.appendChild(bloc);
     grille.appendChild(carte);
   });
 }
@@ -255,19 +216,6 @@ function creerEntree(e, c) {
     if (e.rendu === "affectation") ouvrirAffectation(e, c); else ouvrirTable(e, c);
   });
   return el;
-}
-
-async function basculer(c, valeur) {
-  if (!enregistrement) return;
-  enregistrement[c.cle] = valeur;
-  afficher();
-  try {
-    await grist.selectedTable.update({ id: enregistrement.id, fields: { [c.cle]: valeur } });
-  } catch (err) {
-    console.error("Échec de l'enregistrement :", err);
-    enregistrement[c.cle] = !valeur;
-    afficher();
-  }
 }
 
 function retourAccueil() {
