@@ -91,6 +91,9 @@
   /* ---------- Sous-menu ---------- */
   #choixSous { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
   #choixSous .entree { padding: 14px 16px; font-size: .92rem; }
+  .nbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .nbs span { font-size: .76rem; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.75); border: 1px solid var(--border); color: var(--text); }
+  .nbs .att { font-weight: 400; color: var(--muted); }
 
   /* ---------- Onglets et compteurs des vues ---------- */
   .onglets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
@@ -98,10 +101,6 @@
   .onglet:hover:not(.inactif) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
   .onglet.on { font-weight: 700; box-shadow: 0 0 0 2px var(--accent); }
   .onglet.inactif { opacity: .5; cursor: not-allowed; }
-  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
-  .stat { padding: 8px 16px; border-radius: 12px; border: 1px solid; font-size: .85rem; }
-  .stat b { font-size: 1.2rem; margin-right: 6px; }
-  .stat small { color: var(--muted); margin-left: 6px; }
 
   /* ---------- Vue Contrôle de la saisie des candidatures ---------- */
   .filtreChg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
@@ -191,7 +190,6 @@
     <span id="compteurCtrl"></span>
   </div>
   <div class="onglets" id="ongletsCtrl"></div>
-  <div class="stats" id="statsCtrl"></div>
   <div id="alerteCtrl"></div>
   <div class="filtreChg" id="filtreBloc"><span class="filtreLib" id="filtreLib">Changement :</span><span id="chipsChg"></span></div>
   <div id="listeCtrl"></div>
@@ -665,8 +663,11 @@ function dessinerOnglets(entree, choixActif, c) {
   });
 }
 
+let sousJeton = 0;
+
 function ouvrirSousMenu(entree, c) {
   vueOuverte = true;
+  const jetonS = ++sousJeton;
   montrer("vueSous");
   $("titreSous").textContent = entree.label + " — " + c.label;
   const bloc = $("choixSous");
@@ -676,10 +677,27 @@ function ouvrirSousMenu(entree, c) {
     const el = h("button", "entree " + ch.classe + (actif ? "" : " inactif"), ch.label);
     el.type = "button";
     el.appendChild(h("small", null, ch.tableId ? "Table : " + ch.tableId : "Table à préciser"));
-    if (actif) el.addEventListener("click", function () {
-      retourCtrlFn = function () { ouvrirSousMenu(entree, c); };
-      ouvrirControles(entree, ch, c);
-    });
+    if (actif) {
+      el.addEventListener("click", function () {
+        retourCtrlFn = function () { ouvrirSousMenu(entree, c); };
+        ouvrirControles(entree, ch, c);
+      });
+      // Compteurs : élèves et établissements d'origine concernés pour cette structure
+      const nbs = h("div", "nbs");
+      nbs.appendChild(h("span", "att", "Calcul en cours…"));
+      el.appendChild(nbs);
+      lireLignesCtrl(ch, c, document.createElement("ul")).then(function (r) {
+        if (jetonS !== sousJeton) return;
+        nbs.innerHTML = "";
+        if (!r.serviceTrouve) { nbs.appendChild(h("span", "att", "Colonne « Service » introuvable")); return; }
+        nbs.appendChild(h("span", null, "👩‍🎓 " + pluriel(compterDistincts(r.lignes, "eleve"), "élève")));
+        nbs.appendChild(h("span", null, "🏫 " + pluriel(compterDistincts(r.lignes, "etabOri"), "établissement")));
+      }).catch(function () {
+        if (jetonS !== sousJeton) return;
+        nbs.innerHTML = "";
+        nbs.appendChild(h("span", "att", "Table illisible"));
+      });
+    }
     bloc.appendChild(el);
   });
 }
@@ -720,13 +738,34 @@ async function chargerColonnes(tableId, champs, ulDiag) {
   return { data: data, cols: cols, valeur: valeur };
 }
 
+// Lit la table d'un choix et ne garde que les lignes du service en charge correspondant à la structure.
+// Renvoie { lignes, serviceTrouve }.
+async function lireLignesCtrl(choix, c, ulDiag) {
+  const cfg = VUES_CTRL[choix.vue];
+  const r = await chargerColonnes(choix.tableId, cfg.champs, ulDiag);
+  const lignes = [];
+  if (!r.cols.service) return { lignes: lignes, serviceTrouve: false };
+  const attendues = c.valeurs.map(sansEspaces);
+  (r.data.id || []).forEach(function (_, i) {
+    if (attendues.indexOf(sansEspaces(r.valeur("service", i))) === -1) return;
+    const l = {};
+    cfg.champs.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
+    lignes.push(l);
+  });
+  return { lignes: lignes, serviceTrouve: true };
+}
+
+function compterDistincts(lignes, cle) {
+  return new Set(lignes.map(function (l) { return l[cle]; }).filter(function (v) { return v; })).size;
+}
+function pluriel(n, mot) { return n + " " + mot + (n > 1 ? "s" : ""); }
+
 async function ouvrirControles(entree, choix, c) {
   vueOuverte = true;
   ctrlCfg = VUES_CTRL[choix.vue];
   const jeton = ++ctrlJeton;
   montrer("vueCtrl");
   dessinerOnglets(entree, choix, c);
-  $("statsCtrl").innerHTML = "";
   $("titreCtrl").textContent = choix.label + " — " + c.label;
   $("rechercheCtrl").value = "";
   $("compteurCtrl").textContent = "Chargement…";
@@ -739,18 +778,12 @@ async function ouvrirControles(entree, choix, c) {
   ctrlLignes = [];
 
   try {
-    const r = await chargerColonnes(choix.tableId, ctrlCfg.champs, $("diagCtrl"));
+    const r = await lireLignesCtrl(choix, c, $("diagCtrl"));
     if (jeton !== ctrlJeton) return;
-    if (!r.cols.service) {
-      $("alerteCtrl").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucune ligne n'est affichée afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_CTRL / CHAMPS_2PRO (champ « col »)."));
+    if (!r.serviceTrouve) {
+      $("alerteCtrl").appendChild(h("div", "alerte", "La colonne « Service en charge du traitement » est introuvable : aucune ligne n'est affichée afin de ne pas montrer des données d'une autre structure. Indiquez son libellé exact dans CHAMPS_CTRL / CHAMPS_2PRO / CHAMPS_2PRO_SANS_AVIS (champ « col »)."));
     } else {
-      const attendues = c.valeurs.map(sansEspaces);
-      (r.data.id || []).forEach(function (_, i) {
-        if (attendues.indexOf(sansEspaces(r.valeur("service", i))) === -1) return;
-        const l = {};
-        ctrlCfg.champs.forEach(function (ch) { l[ch.cle] = r.valeur(ch.cle, i); });
-        ctrlLignes.push(l);
-      });
+      ctrlLignes = r.lignes;
     }
     // Une teinte pastel par valeur du filtre (même ordre partout)
     ctrlTeintes = {};
@@ -816,21 +849,6 @@ function dessinerCtrl() {
   vus.forEach(function (l) {
     const e = l.etabOri || "Établissement d'origine non renseigné";
     (groupes[e] = groupes[e] || []).push(l);
-  });
-
-  // Compteurs : élèves et établissements concernés (sur l'affichage courant)
-  const distincts = function (lignes, cle) {
-    return new Set(lignes.map(function (l) { return l[cle]; }).filter(function (v) { return v; })).size;
-  };
-  const stats = $("statsCtrl");
-  stats.innerHTML = "";
-  [["👩‍🎓", "élève(s)", "eleve", "t4"], ["🏫", "établissement(s) d'origine", "etabOri", "t5"]].forEach(function (d) {
-    const n = distincts(vus, d[2]), tot = distincts(ctrlLignes, d[2]);
-    const el = h("div", "stat " + d[3]);
-    el.appendChild(h("b", null, n));
-    el.appendChild(document.createTextNode(d[0] + " " + d[1]));
-    if (n !== tot) el.appendChild(h("small", null, "sur " + tot));
-    stats.appendChild(el);
   });
 
   const liste = $("listeCtrl");
