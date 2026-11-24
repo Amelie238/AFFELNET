@@ -142,6 +142,10 @@
   table.ctab td.eleve { font-weight: 600; background: #fcfbff; }
   .rang { display: inline-block; min-width: 24px; text-align: center; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: var(--c1); border: 1px solid var(--c1b); }
   .code { font-family: Consolas, monospace; font-size: .72rem; padding: 2px 8px; border-radius: 8px; background: var(--c4); border: 1px solid var(--c4b); white-space: nowrap; }
+  button.export { font: inherit; font-size: .82rem; padding: 7px 12px; border-radius: 10px; border: 1px solid var(--c1b); background: var(--c1); color: var(--text); cursor: pointer; transition: transform .08s ease, box-shadow .08s ease; }
+  button.export.pdf { background: var(--c4); border-color: var(--c4b); }
+  button.export:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,.08); }
+  button.export:disabled { opacity: .5; cursor: not-allowed; }
   .chg { font-size: .74rem; padding: 3px 10px; border-radius: 999px; border: 1px solid; font-weight: 600; display: inline-block; }
 </style>
 </head>
@@ -194,6 +198,8 @@
     <h2 id="titreCtrl"></h2>
     <input id="rechercheCtrl" type="search" placeholder="Rechercher un élève, un établissement…">
     <span id="compteurCtrl"></span>
+    <button class="export" id="exportXlsx" type="button" title="Exporter les lignes affichées au format Excel">⬇ Excel (.xlsx)</button>
+    <button class="export pdf" id="exportPdf" type="button" title="Exporter les lignes affichées au format PDF (paysage)">⬇ PDF (.pdf)</button>
   </div>
   <div class="onglets" id="ongletsCtrl"></div>
   <div id="alerteCtrl"></div>
@@ -723,6 +729,7 @@ $("rechercheAff").addEventListener("input", dessinerAff);
 /* ================== SOUS-MENU ET VUES GROUPÉES PAR ÉTABLISSEMENT D'ORIGINE ================== */
 
 let ctrlLignes = [];            // lignes déjà filtrées sur le service en charge
+let ctrlAffichees = [];         // lignes affichées (après filtres/recherche), dans l'ordre d'affichage, pour l'export
 let ctrlFiltres = new Set();    // valeurs du filtre sélectionnées (vide = toutes)
 let ctrlTeintes = {};           // valeur du filtre → classe pastel
 let ctrlCfg = null;             // mise en forme en cours (VUES_CTRL)
@@ -884,6 +891,8 @@ async function ouvrirControles(entree, choix, c) {
   $("filtreLib").textContent = (ctrlCfg.filtreLib || "") + " :";
   ctrlFiltres = new Set();
   ctrlLignes = [];
+  ctrlAffichees = [];
+  majBoutonsExport();
 
   try {
     const r = await lireLignesCtrl(choix, c, $("diagCtrl"));
@@ -1004,6 +1013,7 @@ function dessinerCtrl() {
 
   const liste = $("listeCtrl");
   liste.innerHTML = "";
+  ctrlAffichees = [];
   const noms = Object.keys(groupes).sort(function (a, b) { return a.localeCompare(b, "fr"); });
   if (!noms.length) liste.appendChild(h("div", "vide", "Aucune ligne à afficher pour cette structure."));
 
@@ -1048,6 +1058,7 @@ function dessinerCtrl() {
       });
       ordre.forEach(function (k) {
         const sub = parSg[k], f = sub[0];
+        sub.forEach(function (l) { ctrlAffichees.push({ groupe: nom, ligne: l }); });
         const ent = h("div", "sg");
         ent.appendChild(h("span", null, "🎓 " + (f[sg.titre] || "Formation non renseignée")));
         if (f[sg.code]) ent.appendChild(h("span", "code", f[sg.code]));
@@ -1056,13 +1067,154 @@ function dessinerCtrl() {
         det.appendChild(construireTable(sub, cfg));
       });
     } else {
+      lignesE.forEach(function (l) { ctrlAffichees.push({ groupe: nom, ligne: l }); });
       det.appendChild(construireTable(lignesE, cfg));
     }
     liste.appendChild(det);
   });
   $("compteurCtrl").textContent = vus.length + " / " + ctrlLignes.length + " ligne(s)";
+  majBoutonsExport();
 }
 $("rechercheCtrl").addEventListener("input", dessinerCtrl);
+
+/* ================== EXPORT EXCEL / PDF ================== */
+
+// Bibliothèques chargées à la demande (au premier clic). Pour ne plus dépendre d'Internet, déposez les fichiers
+// correspondants dans le dépôt GitHub, à côté de index.html : ils sont essayés en premier.
+const LIBS_EXPORT = {
+  xlsx: ["./xlsx.full.min.js",
+         "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+         "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"],
+  jspdf: ["./jspdf.umd.min.js",
+          "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+          "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"],
+  autotable: ["./jspdf.plugin.autotable.min.js",
+              "https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js",
+              "https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"]
+};
+const libsChargees = {};
+function chargerScript(url) {
+  return new Promise(function (ok, ko) {
+    const sc = document.createElement("script");
+    sc.src = url;
+    sc.onload = function () { ok(); };
+    sc.onerror = function () { sc.remove(); ko(new Error("échec : " + url)); };
+    document.head.appendChild(sc);
+  });
+}
+function chargerLib(nom) {
+  if (libsChargees[nom]) return libsChargees[nom];
+  const p = (async function () {
+    for (const url of LIBS_EXPORT[nom]) {
+      try { await chargerScript(url); return; } catch (e) { /* on essaie l'adresse suivante */ }
+    }
+    throw new Error("Impossible de charger la bibliothèque « " + nom + " » (connexion Internet ?).");
+  })();
+  libsChargees[nom] = p;
+  p.catch(function () { delete libsChargees[nom]; });
+  return p;
+}
+
+function majBoutonsExport() {
+  const vide = !ctrlAffichees.length;
+  $("exportXlsx").disabled = vide;
+  $("exportPdf").disabled = vide;
+}
+
+// Tableau à plat de ce qui est affiché : { entetes, lignes } (une ligne par ligne affichée, regroupements répétés).
+function donneesExport() {
+  const cfg = ctrlCfg;
+  const entetes = [cfg.grouper === "etabAcc" ? "Établissement d'accueil" : "Établissement d'origine"];
+  const avecContact = cfg.contact !== false;
+  if (avecContact) entetes.push("Téléphone établissement", "Mél établissement");
+  if (cfg.sousGroupe) entetes.push("Formation d'accueil", "Code formation");
+  cfg.colonnes.forEach(function (col) { entetes.push(col.titre); });
+  const net = function (v) { return String(v === null || v === undefined ? "" : v).replace(/✓/g, "Oui"); };
+  const lignes = ctrlAffichees.map(function (x) {
+    const l = x.ligne, r = [net(x.groupe)];
+    if (avecContact) r.push(net(l.tel), net(l.mel));
+    if (cfg.sousGroupe) r.push(net(l[cfg.sousGroupe.titre]), net(l[cfg.sousGroupe.code]));
+    cfg.colonnes.forEach(function (col) { r.push(net(l[col.cle])); });
+    return r;
+  });
+  return { entetes: entetes, lignes: lignes };
+}
+
+function nomFichierExport(ext) {
+  const d = new Date();
+  const pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  const base = norm($("titreCtrl").textContent).replace(/ /g, "_").slice(0, 90) || "export";
+  return base + "_" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "." + ext;
+}
+
+async function lancerExport(bouton, fn) {
+  if (!ctrlAffichees.length) return;
+  const txt = bouton.textContent;
+  bouton.disabled = true;
+  bouton.textContent = "Export en cours…";
+  try { await fn(); }
+  catch (err) { console.error(err); alert("L'export a échoué : " + (err && err.message ? err.message : err)); }
+  bouton.textContent = txt;
+  majBoutonsExport();
+}
+
+async function exporterXlsx() {
+  await chargerLib("xlsx");
+  const d = donneesExport();
+  const ws = XLSX.utils.aoa_to_sheet([d.entetes].concat(d.lignes));
+  ws["!cols"] = d.entetes.map(function (t, ci) {
+    let m = String(t).length;
+    d.lignes.forEach(function (r) { m = Math.max(m, String(r[ci]).length); });
+    return { wch: Math.min(Math.max(m + 2, 10), 60) };
+  });
+  ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: d.lignes.length, c: d.entetes.length - 1 } }) };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Export");
+  XLSX.writeFile(wb, nomFichierExport("xlsx"));
+}
+
+async function exporterPdf() {
+  await chargerLib("jspdf");
+  await chargerLib("autotable");
+  const d = donneesExport();
+  const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const titre = $("titreCtrl").textContent;
+  const dateTxt = new Date().toLocaleDateString("fr-FR");
+  const nbCol = d.entetes.length;
+  const taille = nbCol <= 6 ? 8 : nbCol <= 9 ? 7 : nbCol <= 12 ? 6.2 : 5.5;
+  const marge = 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(titre, marge, 10);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(d.lignes.length + " ligne(s) — édité le " + dateTxt, marge, 14.5);
+
+  doc.autoTable({
+    head: [d.entetes],
+    body: d.lignes,
+    startY: 18,
+    margin: { left: marge, right: marge, top: 12, bottom: 10 },
+    tableWidth: "auto",                       // les colonnes se partagent la largeur de la page : aucune n'est coupée
+    styles: { font: "helvetica", fontSize: taille, cellPadding: 1.2, overflow: "linebreak", valign: "top", lineColor: [220, 215, 235], lineWidth: 0.1 },
+    headStyles: { fillColor: [185, 167, 240], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [251, 249, 255] },
+    showHead: "everyPage",
+    rowPageBreak: "avoid",
+    didDrawPage: function () {
+      const n = doc.internal.getNumberOfPages();
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text("Page " + n, doc.internal.pageSize.getWidth() - marge, doc.internal.pageSize.getHeight() - 4, { align: "right" });
+      doc.setTextColor(0);
+    }
+  });
+  doc.save(nomFichierExport("pdf"));
+}
+
+$("exportXlsx").addEventListener("click", function () { lancerExport(this, exporterXlsx); });
+$("exportPdf").addEventListener("click", function () { lancerExport(this, exporterPdf); });
 </script>
 </body>
 </html>
